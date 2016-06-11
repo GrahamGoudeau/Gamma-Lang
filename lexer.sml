@@ -1,48 +1,56 @@
 signature LEXER = sig
-  type lexer
-  datatype tokenLabel =
+  datatype tokenResult =
       EOF
-    | IDENTIFIER
-    | INTEGER
-    | OPERATOR
+    | IDENTIFIER of string
+    | INTEGER of int
+    | OPERATOR of string
     | OPEN_PAREN
     | CLOSE_PAREN
 
-  type token = string * tokenLabel
+  type line = int
+  type token = tokenResult * line
+  type lexer
 
-  type rule = lexer -> (token * lexer)
+  datatype lexerResult = OK of token | ERROR of string
 
-  val newLexer : (char list * rule list) -> lexer
-  val getCurrentChar : lexer -> char option
-  val advanceChar : lexer -> lexer
+  val newLexer : char list -> lexer
+  val getToken : lexer -> (lexerResult * lexer)
 
 end
 
 structure Lexer :> LEXER = struct
-  type text = char list
-  type line = int
-  type column = int
-
-  type lexer = (text * line * column)
-
-  datatype tokenLabel =
+  datatype tokenResult =
       EOF
-    | IDENTIFIER
-    | INTEGER
-    | OPERATOR
+    | IDENTIFIER of string
+    | INTEGER of int
+    | OPERATOR of string
     | OPEN_PAREN
     | CLOSE_PAREN
 
-  type token = string * tokenLabel
-  type rule = lexer -> (token * lexer)
+  type line = int
+  type token = tokenResult * line
+  type lexer = (char list * line)
 
-  (* represent the lexer state *)
+  datatype lexerResult = OK of token | ERROR of string
 
-  fun newLexer(charList, ruleList) = (charList, 1, 1)
-  fun getCurrentChar ([], r, c) = NONE
-    | getCurrentChar (c::cs, 1, 1) = SOME c
+  fun errorReport(message, lineNo, lexer) =
+    (ERROR (message ^ " on line " ^ (Int.toString lineNo)), lexer)
 
-  fun advanceChar ([], r, c) = ([], r, c)
-    | advanceChar (#"\n"::cs, r, c) = (cs, r + 1, 1)
-    | advanceChar (_::cs, r, c) = (cs, r, c + 1)
+  fun newLexer cs = (cs, 1)
+
+  fun member(elem, list) = List.exists (fn x => x = elem) list
+
+  val opChars = [#"+", #"-", #"/", #"*"]
+
+  fun getToken ([], r) = (OK (EOF, r), ([], r))
+    | getToken (#" "::cs, r) = getToken(cs, r)
+    | getToken (#"\t"::cs, r) = getToken(cs, r)
+    | getToken (#"("::cs, r) = (OK (OPEN_PAREN, r), (cs, r))
+    | getToken (#")"::cs, r) = (OK (CLOSE_PAREN, r), (cs, r))
+    | getToken (c::cs, r) =
+      if Char.isSpace c then getToken(cs, r + 1)
+      (*else errorReport(("Unrecognized input character " ^ (Char.toString c)),
+      * r, (c::cs, r))*)
+      else if member(c, opChars) then (OK (EOF, r), ([], r))
+      else (OK (EOF, r), ([], r))
 end
