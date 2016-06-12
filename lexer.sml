@@ -49,9 +49,10 @@ structure Lexer :> LEXER = struct
 
   fun id x = x
 
-  val isValidIdentifier = (List.all id) o (List.map (fn c => Char.isAlpha c orelse
-                                                  Char.isDigit c orelse
-                                                  c = #"_"))
+  fun isCharLeadIdentifier c = Char.isAlpha c orelse c = #"_"
+  fun isCharInRestOfIdentifier c = isCharLeadIdentifier c orelse Char.isDigit c
+
+
 
   (* collect all chars until predicate is false,
    * and apply f to the resulting sub-list *)
@@ -62,6 +63,15 @@ structure Lexer :> LEXER = struct
           if predicate c then getChars cs (acc @ [c])
           else (c::cs, f acc)
   in getChars chars []
+  end
+
+  val accumulateChars : (char -> bool) -> char list -> (char list -> 'c) -> (char list * 'c) = accumulateChars
+
+  fun isNextTokenIdentifier chars =
+  let
+    val (_, potentialIdent) = accumulateChars isCharInRestOfIdentifier chars charListToString
+    val isNotEmpty = potentialIdent <> ""
+  in isNotEmpty andalso (isCharLeadIdentifier (String.sub(potentialIdent, 0))) andalso (not (member(potentialIdent, keywords)))
   end
 
   fun getToken ([], r) = (OK (EOF, r), ([], r))
@@ -94,6 +104,7 @@ structure Lexer :> LEXER = struct
               | SOME(i) =>
                   (OK ((INTEGER i), r), (cs, r)))
         end
+      (*else if Char.isAlpha c orelse c = #"_" then*)
 
       else errorReport(("Unrecognized input character '" ^ (Char.toString c) ^ "'"), r, (c::cs, r))
 end
