@@ -14,6 +14,27 @@ structure Lexer :> LEXER = struct
 
   datatype lexerResult = OK of token | ERROR of string
 
+  fun tokenToString (tokenResult, lineNo) =
+  let
+    fun getPrintString token =
+      ("<token " ^ token ^ ", line " ^ (Int.toString lineNo) ^ ">")
+    fun getString EOF = "EOF"
+      | getString (IDENTIFIER s) = ("{ident " ^ s ^ "}")
+      | getString (KEYWORD s) = ("{keyword " ^ s ^ "}")
+      | getString (INTEGER s) = ("{int " ^ (Int.toString s) ^ "}")
+      | getString (OPERATOR s) = ("{operator " ^ s ^ "}")
+      | getString OPEN_PAREN = "("
+      | getString CLOSE_PAREN = ")"
+  in getPrintString (getString tokenResult)
+  end
+
+  fun printTokenList ts =
+  let
+    val strTs = List.map tokenToString ts
+    val _ = List.map (fn s => print s) strTs
+  in ()
+  end
+
   fun errorReport(message, lineNo, lexer) =
     (ERROR (message ^ " on line " ^ (Int.toString lineNo)), lexer)
 
