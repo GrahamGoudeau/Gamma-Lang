@@ -21,11 +21,13 @@ let
 
   fun getChars stream =
   let
+    fun error() = exitError ("Problem reading from file '" ^ fileName ^ "'")
     fun accumulate NONE = []
       | accumulate c = (Option.valOf c) :: (accumulate (TextIO.input1 stream))
+          handle Option => error()
   in
     accumulate (TextIO.input1 stream)
-      handle Io => exitError ("Problem reading from file '" ^ fileName ^ "'")
+      handle Io => error()
   end
 
 in
