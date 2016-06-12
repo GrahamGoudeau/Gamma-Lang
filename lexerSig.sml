@@ -1,15 +1,19 @@
 signature LEXER = sig
-  datatype tokenResult =
+  datatype tokenLabel =
       EOF
     | IDENTIFIER of string
     | KEYWORD of string
+    | FUNCTION_START
+    | FUNCTION_END
+    | IMPURE
+    | LAMBDA
     | INTEGER of int
     | OPERATOR of string
     | OPEN_PAREN
     | CLOSE_PAREN
 
   type line = int
-  type token = tokenResult * line
+  type token = tokenLabel * line
   type lexer
 
   datatype lexerResult = OK of token | ERROR of string

@@ -1,18 +1,50 @@
 structure Lexer :> LEXER = struct
-  datatype tokenResult =
+  datatype tokenLabel =
       EOF
     | IDENTIFIER of string
     | KEYWORD of string
+    | FUNCTION_START
+    | FUNCTION_END
+    | IMPURE
+    | LAMBDA
     | INTEGER of int
     | OPERATOR of string
     | OPEN_PAREN
     | CLOSE_PAREN
 
   type line = int
-  type token = tokenResult * line
+  type token = tokenLabel * line
   type lexer = (char list * line)
+  exception UnexpectedLexerError of string
 
   datatype lexerResult = OK of token | ERROR of string
+
+  val keywordMappings = [("function", FUNCTION_START),
+                         ("end", FUNCTION_END),
+                         ("lambda", LAMBDA),
+                         ("impure", IMPURE)
+                        ]
+
+  val keywords = List.map (fn (keyword, _) => keyword) keywordMappings
+
+  fun getKeywordLabel keyword =
+  let
+    val tupleOption = List.find (fn (str, _) => str = keyword) keywordMappings
+    val tupleOption : (string * tokenLabel) option = tupleOption
+  in (case tupleOption of
+           NONE => NONE
+         | (SOME (_, label)) => (SOME label))
+  end
+
+  fun getLabelString label =
+  let
+    val tupleOption = List.find (fn (_, possibleLabel) => possibleLabel = label) keywordMappings
+  in (case tupleOption of
+           NONE => NONE
+         | (SOME (str, _)) => (SOME str))
+  end
+
+  val getKeywordLabel : string -> tokenLabel option = getKeywordLabel
 
   fun tokenToString (tokenResult, lineNo) =
   let
@@ -25,6 +57,11 @@ structure Lexer :> LEXER = struct
       | getString (OPERATOR s) = ("{operator " ^ s ^ "}")
       | getString OPEN_PAREN = "("
       | getString CLOSE_PAREN = ")"
+      | getString label =
+          (case getLabelString label of
+                NONE => raise (UnexpectedLexerError "Unexpected error getting label string")
+              | SOME(l) => ("{keyword '" ^ l ^ "'}"))
+
   in getPrintString (getString tokenResult)
   end
 
@@ -43,7 +80,6 @@ structure Lexer :> LEXER = struct
   fun member list elem = List.exists (fn x => x = elem) list
 
   val opChars = [#"+", #"-", #"/", #"*", #"$", #"<", #">", #"=", #".", #":"]
-  val keywords = ["function", "end", "lambda", "impure"]
 
   fun peekChar [] = NONE
     | peekChar (c::cs) = SOME c
@@ -127,8 +163,12 @@ structure Lexer :> LEXER = struct
       (* KEYWORD LEXING *)
       else if isNextTokenKeyword (c::cs) then
         let
-          val (remainingChars, result) = accumulateChars isCharLeadIdentifier (c::cs) charListToString
-        in (OK (KEYWORD result, r), (remainingChars, r))
+          val (remainingChars, result) = accumulateChars isCharLeadIdentifier
+          (c::cs) (getKeywordLabel o charListToString)
+          val remainingLexer = (remainingChars, r)
+        in (case result of
+                 NONE => (ERROR "Unexpected error getting keyword", remainingLexer)
+               | SOME(k) => (OK (k, r), remainingLexer))
         end
 
 
