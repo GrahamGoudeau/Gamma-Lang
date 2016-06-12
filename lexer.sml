@@ -42,7 +42,7 @@ structure Lexer :> LEXER = struct
 
   fun member list elem = List.exists (fn x => x = elem) list
 
-  val opChars = [#"+", #"-", #"/", #"*"]
+  val opChars = [#"+", #"-", #"/", #"*", #"$", #"<", #">", #"=", #"."]
   val keywords = ["function", "end", "lambda"]
 
   fun peekChar [] = NONE
