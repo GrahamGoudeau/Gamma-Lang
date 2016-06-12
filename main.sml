@@ -3,8 +3,10 @@ datatype exitCode = FAIL | SUCCESS
 fun exit FAIL = OS.Process.exit OS.Process.failure
   | exit SUCCESS = OS.Process.exit OS.Process.success
 
+fun println s = print (s ^ "\n")
+
 fun printUsage() =
-  (print ("Usage string..."); exit FAIL)
+  (println ("Usage: gamma {input file name}"); exit FAIL)
 
 fun parseArgs [fileName] = fileName
   | parseArgs _ = printUsage()

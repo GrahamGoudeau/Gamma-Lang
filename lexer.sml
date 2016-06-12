@@ -43,12 +43,12 @@ structure Lexer :> LEXER = struct
   fun member list elem = List.exists (fn x => x = elem) list
 
   val opChars = [#"+", #"-", #"/", #"*"]
-  val keywords = ["function", "end"]
+  val keywords = ["function", "end", "lambda"]
 
   fun peekChar [] = NONE
     | peekChar (c::cs) = SOME c
 
-  val charListToString = String.concat o (List.map (fn c => Char.toString c))
+  val charListToString = String.concat o (List.map Char.toString)
 
   fun id x = x
 
@@ -124,6 +124,7 @@ structure Lexer :> LEXER = struct
         in (OK (IDENTIFIER result, r), (remainingChars, r))
         end
 
+      (* KEYWORD LEXING *)
       else if isNextTokenKeyword (c::cs) then
         let
           val (remainingChars, result) = accumulateChars isCharLeadIdentifier (c::cs) charListToString
