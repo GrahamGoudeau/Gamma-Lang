@@ -112,8 +112,8 @@ structure Lexer :> LEXER = struct
             accumulateChars (Char.isDigit) (c::cs) (Int.fromString o charListToString)
         in
           (case result of
-                NONE => errorReport("Unexpected error", r, ((c::cs), r))
-              | SOME(i) =>
+                NONE => errorReport("Unexpected error while lexing integer", r, ((c::cs), r))
+              | SOME i =>
                   (OK ((INTEGER i), r), (cs, r)))
         end
 
