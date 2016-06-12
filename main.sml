@@ -5,15 +5,37 @@ fun exit FAIL = OS.Process.exit OS.Process.failure
 
 fun println s = print (s ^ "\n")
 
+fun exitError message =
+  (println message; exit FAIL)
+
 fun printUsage() =
   (println ("Usage: gamma {input file name}"); exit FAIL)
 
 fun parseArgs [fileName] = fileName
   | parseArgs _ = printUsage()
 
+fun getInputChars fileName =
+let
+  val inputStream = TextIO.openIn fileName
+    handle Io => exitError ("Problem opening file '" ^ fileName ^ "'")
+
+  fun getChars stream =
+  let
+    fun accumulate NONE = []
+      | accumulate c = (Option.valOf c) :: (accumulate (TextIO.input1 stream))
+  in
+    accumulate (TextIO.input1 stream)
+      handle Io => exitError ("Problem reading from file '" ^ fileName ^ "'")
+  end
+
+in
+  getChars inputStream
+end
+
 fun main() =
 let
   val fileName = parseArgs (CommandLine.arguments())
+  val inputChars = getInputChars fileName
 in exit SUCCESS
 end
 
