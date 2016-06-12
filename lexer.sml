@@ -2,6 +2,7 @@ signature LEXER = sig
   datatype tokenResult =
       EOF
     | IDENTIFIER of string
+    | KEYWORD of string
     | INTEGER of int
     | OPERATOR of string
     | OPEN_PAREN
@@ -22,6 +23,7 @@ structure Lexer :> LEXER = struct
   datatype tokenResult =
       EOF
     | IDENTIFIER of string
+    | KEYWORD of string
     | INTEGER of int
     | OPERATOR of string
     | OPEN_PAREN
@@ -38,9 +40,10 @@ structure Lexer :> LEXER = struct
 
   fun newLexer cs = (cs, 1)
 
-  fun member(elem, list) = List.exists (fn x => x = elem) list
+  fun member list elem = List.exists (fn x => x = elem) list
 
   val opChars = [#"+", #"-", #"/", #"*"]
+  val keywords = ["function", "end"]
 
   fun peekChar [] = NONE
     | peekChar (c::cs) = SOME c
@@ -71,7 +74,16 @@ structure Lexer :> LEXER = struct
   let
     val (_, potentialIdent) = accumulateChars isCharInRestOfIdentifier chars charListToString
     val isNotEmpty = potentialIdent <> ""
-  in isNotEmpty andalso (isCharLeadIdentifier (String.sub(potentialIdent, 0))) andalso (not (member(potentialIdent, keywords)))
+  in isNotEmpty andalso (isCharLeadIdentifier (String.sub(potentialIdent, 0)))
+        andalso (not (member keywords potentialIdent))
+  end
+
+  fun isNextTokenKeyword chars =
+  let
+    val (_, potentialKeyword) =
+      accumulateChars isCharLeadIdentifier chars charListToString
+    val isNotEmpty = potentialKeyword <> ""
+  in isNotEmpty andalso (member keywords potentialKeyword)
   end
 
   fun getToken ([], r) = (OK (EOF, r), ([], r))
@@ -85,10 +97,10 @@ structure Lexer :> LEXER = struct
       if Char.isSpace c then getToken(cs, r + 1)
 
       (* OPERATOR LEXING *)
-      else if member(c, opChars) then
+      else if member opChars c then
         let
           val (remainingChars, result) =
-            accumulateChars (fn c => member(c, opChars)) (c::cs) charListToString
+            accumulateChars (member opChars) (c::cs) charListToString
         in
           (OK (OPERATOR result, r), (remainingChars, r))
         end
@@ -104,13 +116,26 @@ structure Lexer :> LEXER = struct
               | SOME(i) =>
                   (OK ((INTEGER i), r), (cs, r)))
         end
-      (*else if Char.isAlpha c orelse c = #"_" then*)
+
+      (* IDENTIFIER LEXING *)
+      else if isNextTokenIdentifier (c::cs) then
+        let
+          val (remainingChars, result) = accumulateChars isCharInRestOfIdentifier (c::cs) charListToString
+        in (OK (IDENTIFIER result, r), (remainingChars, r))
+        end
+
+      else if isNextTokenKeyword (c::cs) then
+        let
+          val (remainingChars, result) = accumulateChars isCharLeadIdentifier (c::cs) charListToString
+        in (OK (KEYWORD result, r), (remainingChars, r))
+        end
+
 
       else errorReport(("Unrecognized input character '" ^ (Char.toString c) ^ "'"), r, (c::cs, r))
 end
 
 val s = String.explode
-val l = Lexer.newLexer (s "   \n 1+a1+++2 9 - 8")
+val l = Lexer.newLexer (s "   \n 1+ 1a+++2 9 - 8")
 val (e, l1) = Lexer.getToken l
 val (t, l2) = Lexer.getToken l1
 val (f, l3) = Lexer.getToken l2
