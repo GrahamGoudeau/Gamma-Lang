@@ -47,12 +47,20 @@ structure Lexer :> LEXER = struct
 
   val charListToString = String.concat o (List.map (fn c => Char.toString c))
 
-  fun accumulateChars predicate chars =
+  fun id x = x
+
+  val isValidIdentifier = (List.all id) o (List.map (fn c => Char.isAlpha c orelse
+                                                  Char.isDigit c orelse
+                                                  c = #"_"))
+
+  (* collect all chars until predicate is false,
+   * and apply f to the resulting sub-list *)
+  fun accumulateChars predicate chars f =
   let
-    fun getChars [] acc = ([], acc)
+    fun getChars [] acc = ([], f acc)
       | getChars (c::cs) acc =
           if predicate c then getChars cs (acc @ [c])
-          else (c::cs, acc)
+          else (c::cs, f acc)
   in getChars chars []
   end
 
@@ -70,31 +78,28 @@ structure Lexer :> LEXER = struct
       else if member(c, opChars) then
         let
           val (remainingChars, result) =
-            accumulateChars (fn c => member(c, opChars)) (c::cs)
-          val resultString = charListToString result
+            accumulateChars (fn c => member(c, opChars)) (c::cs) charListToString
         in
-          (OK (OPERATOR resultString, r), (remainingChars, r))
+          (OK (OPERATOR result, r), (remainingChars, r))
         end
 
+      (* INTEGER LEXING *)
       else if Char.isDigit c then
         let
           val (remainingChars, result) =
-            accumulateChars (Char.isDigit) (c::cs)
-          val resultNumOption = (Int.fromString o charListToString) result
+            accumulateChars (Char.isDigit) (c::cs) (Int.fromString o charListToString)
         in
-          (case resultNumOption of
+          (case result of
                 NONE => errorReport("Unexpected error", r, ((c::cs), r))
               | SOME(i) =>
                   (OK ((INTEGER i), r), (cs, r)))
         end
 
-      else (OK (EOF, r), ([], r))
-      (*else errorReport(("Unrecognized input character " ^ (Char.toString c)),
-      * r, (c::cs, r))*)
+      else errorReport(("Unrecognized input character '" ^ (Char.toString c) ^ "'"), r, (c::cs, r))
 end
 
 val s = String.explode
-val l = Lexer.newLexer (s "   \n 1+1+++2 9 - 8")
+val l = Lexer.newLexer (s "   \n 1+a1+++2 9 - 8")
 val (e, l1) = Lexer.getToken l
 val (t, l2) = Lexer.getToken l1
 val (f, l3) = Lexer.getToken l2
