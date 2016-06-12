@@ -33,17 +33,19 @@ end
 
 exception LexerError of string
 exception ParserError of string
+exception UnexpectedError of string
 
 fun handleErrors f = f()
   handle (LexerError s) => exitError ("Lexer error:\n\t'" ^ s ^ "'")
     | (ParserError s) => exitError ("Parser error:\n\t'" ^ s ^ "'")
+    | (UnexpectedError s) => exitError ("Found a bug...\n\t'" ^ s ^ "'")
 
 fun buildTokens inputChars =
 let
   val lexer = Lexer.newLexer inputChars
   fun buildTokens (Lexer.OK (Lexer.EOF, _), _) = []
-    | buildTokens (Lexer.OK (result, line), newLexer) =
-        (result, line) :: (buildTokens (Lexer.getToken newLexer))
+    | buildTokens (Lexer.OK token, newLexer) =
+        token :: (buildTokens (Lexer.getToken newLexer))
     | buildTokens ((Lexer.ERROR reason), _) = raise (LexerError reason)
 in buildTokens (Lexer.getToken lexer)
 end
