@@ -11,6 +11,7 @@ signature LEXER = sig
     | OPERATOR of string
     | OPEN_PAREN
     | CLOSE_PAREN
+    | ANNOTATION
 
   type line = int
   type token = tokenLabel * line

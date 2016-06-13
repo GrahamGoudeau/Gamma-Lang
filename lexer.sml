@@ -11,6 +11,7 @@ structure Lexer :> LEXER = struct
     | OPERATOR of string
     | OPEN_PAREN
     | CLOSE_PAREN
+    | ANNOTATION
 
   type line = int
   type token = tokenLabel * line
@@ -57,6 +58,7 @@ structure Lexer :> LEXER = struct
       | getString (OPERATOR s) = ("{operator " ^ s ^ "}")
       | getString OPEN_PAREN = "("
       | getString CLOSE_PAREN = ")"
+      | getString ANNOTATION = "@ (annotation)"
       | getString label =
           (case getLabelString label of
                 NONE => raise (UnexpectedLexerError "Unexpected error getting label string")
@@ -159,6 +161,10 @@ structure Lexer :> LEXER = struct
           val (remainingChars, result) = accumulateChars isCharInRestOfIdentifier (c::cs) charListToString
         in (OK (IDENTIFIER result, r), (remainingChars, r))
         end
+
+      (* ANNOTATION LEXING *)
+      else if c = #"@" then
+        (OK (ANNOTATION, r), (cs, r))
 
       (* KEYWORD LEXING *)
       else if isNextTokenKeyword (c::cs) then
