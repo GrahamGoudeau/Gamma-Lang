@@ -1,6 +1,10 @@
 $(SML_LIB)/basis/basis.mlb
+stackSig.sml
+stack.sml
+queueSig.sml
+queue.sml
 lexerSig.sml
-parserSig.sml
 lexer.sml
+parserSig.sml
 parser.sml
 main.sml
