@@ -169,8 +169,7 @@ structure Lexer :> LEXER = struct
       (* KEYWORD LEXING *)
       else if isNextTokenKeyword (c::cs) then
         let
-          val (remainingChars, result) = accumulateChars isCharLeadIdentifier
-          (c::cs) (getKeywordLabel o charListToString)
+          val (remainingChars, result) = accumulateChars isCharLeadIdentifier (c::cs) (getKeywordLabel o charListToString)
           val remainingLexer = (remainingChars, r)
         in (case result of
                  NONE => (ERROR "Unexpected error getting keyword", remainingLexer)
