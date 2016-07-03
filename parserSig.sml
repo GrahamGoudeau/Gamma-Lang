@@ -15,13 +15,6 @@ signature PARSER = sig
                | VAR of identifier * int
                | CALL of identifier * exp list
 
-  (*type expContext*)
-
-  (*datatype topLevel = DEFN of identifier * bool * identifier list * exp list * line
-                    | EXP of exp
-                    *)
-
-  (*val parse : Lexer.token list -> topLevel list*)
   val expression : Lexer.token list -> exp option
 
   datatype associativity = LEFT | RIGHT
