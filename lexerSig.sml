@@ -3,6 +3,7 @@ signature LEXER = sig
       EOF
     | IDENTIFIER of string
     | KEYWORD of string
+    | DECLARE_VAR
     | FUNCTION_START
     | FUNCTION_END
     | IMPURE
@@ -12,6 +13,7 @@ signature LEXER = sig
     | OPEN_PAREN
     | CLOSE_PAREN
     | ANNOTATION
+    | COMMA
 
   type line = int
   type token = tokenLabel * line
@@ -22,5 +24,5 @@ signature LEXER = sig
   val newLexer : char list -> lexer
   val getToken : lexer -> (lexerResult * lexer)
 
-  val printTokenList : token list -> unit
+  val tokenToString : tokenLabel -> string
 end

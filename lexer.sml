@@ -3,6 +3,7 @@ structure Lexer :> LEXER = struct
       EOF
     | IDENTIFIER of string
     | KEYWORD of string
+    | DECLARE_VAR
     | FUNCTION_START
     | FUNCTION_END
     | IMPURE
@@ -12,6 +13,7 @@ structure Lexer :> LEXER = struct
     | OPEN_PAREN
     | CLOSE_PAREN
     | ANNOTATION
+    | COMMA
 
   type line = int
   type token = tokenLabel * line
@@ -23,7 +25,8 @@ structure Lexer :> LEXER = struct
   val keywordMappings = [("function", FUNCTION_START),
                          ("end", FUNCTION_END),
                          ("lambda", LAMBDA),
-                         ("impure", IMPURE)
+                         ("impure", IMPURE),
+                         ("var", DECLARE_VAR)
                         ]
 
   val keywords = List.map (fn (keyword, _) => keyword) keywordMappings
@@ -47,32 +50,19 @@ structure Lexer :> LEXER = struct
 
   val getKeywordLabel : string -> tokenLabel option = getKeywordLabel
 
-  fun tokenToString (tokenResult, lineNo) =
-  let
-    fun getPrintString token =
-      ("<token " ^ token ^ ", line " ^ (Int.toString lineNo) ^ ">")
-    fun getString EOF = "EOF"
-      | getString (IDENTIFIER s) = ("{ident " ^ s ^ "}")
-      | getString (KEYWORD s) = ("{keyword " ^ s ^ "}")
-      | getString (INTEGER s) = ("{int " ^ (Int.toString s) ^ "}")
-      | getString (OPERATOR s) = ("{operator " ^ s ^ "}")
-      | getString OPEN_PAREN = "("
-      | getString CLOSE_PAREN = ")"
-      | getString ANNOTATION = "@ (annotation)"
-      | getString label =
-          (case getLabelString label of
-                NONE => raise (UnexpectedLexerError "Unexpected error getting label string")
-              | SOME(l) => ("{keyword '" ^ l ^ "'}"))
-
-  in getPrintString (getString tokenResult)
-  end
-
-  fun printTokenList ts =
-  let
-    val strTs = List.map tokenToString ts
-    val _ = List.map (fn s => print s) strTs
-  in ()
-  end
+  fun tokenToString EOF = "EOF"
+    | tokenToString (IDENTIFIER s) = ("{ident " ^ s ^ "}")
+    | tokenToString (KEYWORD s) = ("{keyword " ^ s ^ "}")
+    | tokenToString (INTEGER s) = ("{int " ^ (Int.toString s) ^ "}")
+    | tokenToString (OPERATOR s) = ("{operator " ^ s ^ "}")
+    | tokenToString OPEN_PAREN = "("
+    | tokenToString CLOSE_PAREN = ")"
+    | tokenToString ANNOTATION = "@ (annotation)"
+    | tokenToString COMMA = "{comma ','}"
+    | tokenToString label =
+        (case getLabelString label of
+              NONE => raise (UnexpectedLexerError "Unexpected error getting label string")
+            | SOME(l) => ("{keyword '" ^ l ^ "'}"))
 
   fun errorReport(message, lineNo, lexer) =
     (ERROR (message ^ " on line " ^ (Int.toString lineNo)), lexer)
@@ -134,6 +124,10 @@ structure Lexer :> LEXER = struct
       (* NEW LINE LEXING *)
       if Char.isSpace c then getToken(cs, r + 1)
 
+      (* COMMA LEXING *)
+      else if c = #"," then
+        (OK (COMMA, r), (cs, r))
+
       (* OPERATOR LEXING *)
       else if member opChars c then
         let
@@ -177,12 +171,5 @@ structure Lexer :> LEXER = struct
         end
 
 
-      else errorReport(("Unrecognized input character '" ^ (Char.toString c) ^ "'"), r, (c::cs, r))
+      else errorReport(("Unrecognized input character \"" ^ (Char.toString c) ^ "\""), r, (c::cs, r))
 end
-
-val s = String.explode
-val l = Lexer.newLexer (s "   \n 1+ 1a+++2 9 - 8")
-val (e, l1) = Lexer.getToken l
-val (t, l2) = Lexer.getToken l1
-val (f, l3) = Lexer.getToken l2
-val (g, l4) = Lexer.getToken l3

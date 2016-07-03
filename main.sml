@@ -27,17 +27,18 @@ let
     accumulate (TextIO.input1 stream)
       handle _ => exitError ("Problem reading from file '" ^ fileName ^ "'")
   end
+  val result = getChars inputStream
+  val _ = TextIO.closeIn inputStream
 in
-  getChars inputStream
+  result
 end
 
 exception LexerError of string
-exception ParserError of string
 exception UnexpectedError of string
 
 fun handleErrors f = f()
   handle (LexerError s) => exitError ("Lexer error:\n\t'" ^ s ^ "'")
-    | (ParserError s) => exitError ("Parser error:\n\t'" ^ s ^ "'")
+    | (Parser.ParserError s) => exitError ("Parser error:\n\t'" ^ s ^ "'")
     | (UnexpectedError s) => exitError ("Found a bug...\n\t'" ^ s ^ "'")
 
 fun buildTokens inputChars =
@@ -55,6 +56,13 @@ let
   val fileName = parseArgs (CommandLine.arguments())
   val inputChars = getInputChars fileName
   val tokens = buildTokens inputChars
+  val opMap = Parser.addNewOperators(Parser.newOperatorMap,
+        [("+", (Parser.LEFT, Parser.ONE)),
+         ("-", (Parser.LEFT, Parser.ONE)),
+         ("*", (Parser.LEFT, Parser.TWO)),
+         ("/", (Parser.LEFT, Parser.TWO))
+         ])
+  val parseForest = Parser.parse(tokens, opMap)
 in exit SUCCESS
 end
 
