@@ -71,7 +71,7 @@ structure Lexer :> LEXER = struct
 
   fun member list elem = List.exists (fn x => x = elem) list
 
-  val opChars = [#"+", #"-", #"/", #"*", #"$", #"<", #">", #"=", #".", #":"]
+  val opChars = [#"+", #"-", #"/", #"*", #"$", #"<", #">", #"=", #".", #":", #"~"]
 
   fun peekChar [] = NONE
     | peekChar (c::cs) = SOME c

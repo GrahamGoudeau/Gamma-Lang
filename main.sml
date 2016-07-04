@@ -57,11 +57,12 @@ let
   val inputChars = getInputChars fileName
   val tokens = buildTokens inputChars
   val opMap = Parser.addNewOperators(Parser.newOperatorMap,
-        [("+", (Parser.LEFT, Parser.ONE)),
-         ("-", (Parser.LEFT, Parser.ONE)),
-         ("*", (Parser.LEFT, Parser.TWO)),
-         ("/", (Parser.LEFT, Parser.TWO))
-         ])
+      [("+", (Parser.LEFT, Parser.BINARY, 1)),
+       ("-", (Parser.LEFT, Parser.BINARY, 1)),
+       ("*", (Parser.LEFT, Parser.BINARY, 2)),
+       ("/", (Parser.LEFT, Parser.BINARY, 2)),
+       ("~", (Parser.LEFT, Parser.UNARY, 2))
+       ])
   val parseForest = Parser.parse(tokens, opMap)
 in exit SUCCESS
 end

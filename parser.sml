@@ -10,11 +10,8 @@ structure Parser :> PARSER = struct
   datatype exp = ASSIGN of identifier * exp * int
                | LIT of value * int
                | VAR of identifier * int
-               | CALL of identifier * exp list
+               | CALL of identifier * exp list * int
 
-  (*datatype topLevel = DEFN of identifier * bool * identifier list * exp list * line
-                    | EXP of exp
-                    *)
   fun expression t = NONE
 
   (* PARSER UTILITY FUNCTIONS *)
@@ -28,6 +25,8 @@ structure Parser :> PARSER = struct
 
   fun peekTokenLabel [] = NONE
     | peekTokenLabel (t::ts) = SOME (getLabel t)
+  fun peekTokenLine [] = NONE
+    | peekTokenLine (t::ts) = SOME (getLine t)
 
   fun raiseError(message, line) =
     raise ParserError(message ^ "; reported on line " ^ (intToString line))
@@ -36,33 +35,38 @@ structure Parser :> PARSER = struct
 
   (* OPERATOR PRECEDENCE/ASSOCIATIVITY UTILS *)
   datatype associativity = LEFT | RIGHT
-  datatype precedence = ONE | TWO
-  type operatorMap = (string * (associativity * precedence)) list
+  datatype arity = UNARY | BINARY
+  type operatorMap = (string * (associativity * arity * int)) list
+  val MIN_OP_PRECEDENCE = 1
   val newOperatorMap : operatorMap = []
   val addNewOperator = op ::
-  (*
-  fun addNewOperators(newEntries, existing) =
-    List.foldl (op ::) existing newEntries
-    *)
-  (*val addNewOperators = (List.foldl (op ::))*)
   val addNewOperators = op @
 
   fun getOpAssoc oper opMap line =
   let
-    val resultOpt = List.find (fn (testOper, (_, _)) => testOper = oper) opMap
+    val resultOpt = List.find (fn (testOper, _) => testOper = oper) opMap
   in
     case resultOpt of
          NONE => raiseError("Unknown operator " ^ oper, line)
-       | SOME (_, (assoc, _)) => assoc
+       | SOME (_, (assoc, _, _)) => assoc
   end
 
   fun getOpPrecedence oper opMap line =
   let
-    val resultOpt = List.find (fn (testOper, (_, _)) => testOper = oper) opMap
+    val resultOpt = List.find (fn (testOper, _) => testOper = oper) opMap
   in
     case resultOpt of
          NONE => raiseError("Unknown operator " ^ oper, line)
-       | SOME (_, (_, prec)) => prec
+       | (SOME (_, (_, _, prec))) => prec
+  end
+
+  fun getOpArity oper opMap line =
+  let
+    val resultOpt = List.find (fn (testOper, _) => testOper = oper) opMap
+  in
+    case resultOpt of
+         NONE => raiseError("Unknown operator " ^ oper, line)
+       | SOME (_, (_, arity, _)) => arity
   end
 
   fun valueToString (INTEGER i) = ("<value int " ^ (intToString i) ^ ">")
@@ -75,79 +79,139 @@ structure Parser :> PARSER = struct
         (ASSIGN (i, e, line)) => ("{assign " ^ i ^ " := " ^ (expToString e) ^ "}")
     | (LIT (v, _)) => ("{literal " ^ (valueToString v) ^ "}")
     | (VAR (i, _)) => ("{var " ^ i ^ "}")
-    | (CALL (i, eList)) => ("{function call " ^ i ^ "}")
+    | (CALL (i, eList, _)) => ("{function call " ^ i ^ "}")
 
 
   (* MAIN PARSING *)
-  fun parseFactor([], fail) =
+  (* source: http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing *)
+  fun parseExpression([], _, _, fail) =
         if fail then
-          raiseError("Expected term but got EOF", ~1)
+          raiseError("Expected expression, got EOF", ~1)
         else (NONE, [])
-    | parseFactor(t::ts, fail) = let val _ = print "factor\n" in case getLabel t of
+    | parseExpression(tokens as (t::ts), opMap, minPrecedence, fail) =
+      let
+        val (lhsOpt, lhsState) = parseAtom(tokens, opMap, true)
+        val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Expected term of expression", getLine t))
+        val rec gatherBranches = fn
+            (currentLeftHandSide, []) => (SOME currentLeftHandSide, [])
+          | (currentLeftHandSide, (tokens as ((Lexer.OPERATOR oper, line)::ts'))) =>
+              if (getOpArity oper opMap line) <> BINARY orelse
+                     (getOpPrecedence oper opMap line) < minPrecedence then
+                (SOME currentLeftHandSide, tokens)
+              else
+                let
+                  val currentPrec = getOpPrecedence oper opMap line
+                  val currentAssoc = getOpAssoc oper opMap line
+                  val newMinPrec = if currentAssoc = LEFT then currentPrec + 1 else currentPrec
+
+                  val (rhsOpt, rhsState) = parseExpression(ts', opMap, newMinPrec, fail)
+                in
+                  case rhsOpt of
+                       NONE => (SOME currentLeftHandSide, tokens)
+                     | SOME rhs => gatherBranches(CALL (oper, [currentLeftHandSide, rhs], line), rhsState)
+                end
+
+          (* TODO:change this to accommodate ends of expressions *)
+          | (currentLeftHandSide, t'::ts') =>
+              if fail then
+                raiseError("Expected expression, got " ^ Lexer.tokenToString (getLabel t'), getLine t')
+              else (SOME currentLeftHandSide, t'::ts')
+      in
+        gatherBranches (lhs, lhsState)
+      end
+  and
+      parseAtom([], opMap, fail) =
+        if fail then
+          raiseError("Expected expression but got EOF", ~1)
+        else (NONE, [])
+    | parseAtom(t::ts, opMap, fail) = (case getLabel t of
         Lexer.INTEGER i =>
           (SOME(LIT(INTEGER i, getLine t)), ts)
+      | Lexer.OPEN_PAREN =>
+          let
+            val (exp, expState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, false)
+          in
+            case exp of
+                 NONE => raiseError("Expected parenthesized expression", getLine t)
+               | SOME e =>
+                   (case expState of
+                        [] => raiseError("Unmatched \")\"", getLine t)
+                      | ((Lexer.CLOSE_PAREN, l)::ts) => (SOME e, ts)
+                      | ((t, l)::ts) =>
+                          raiseError("Expected \")\", got " ^
+                          (Lexer.tokenToString t) ^ " in expression " ^ (expToString e), l))
+          end
       | Lexer.IDENTIFIER i =>
           (SOME(LIT(IDENTIFIER i, getLine t)), ts)
       | _ =>
           if fail then
-            raiseError("Expected expression factor, got " ^ (Lexer.tokenToString (getLabel t)), getLine t)
-          else (NONE, t::ts)
-                                 end
+            raiseError("Expected expression atom, got " ^ (Lexer.tokenToString (getLabel t)), getLine t)
+          else (NONE, t::ts))
+          (*
+  and
 
-  fun parseTerm([], _, fail) =
+  parseTerm([], _, fail) =
         if fail then
           raiseError("Expected term but got EOF", ~1)
         else (NONE, [])
     | parseTerm(tokens as (t::ts), opMap, fail) =
         let
-          val _ = print "term entering\n"
-          val (lhsOpt, lhsState) = parseFactor(tokens, fail)
+          val (lhsOpt, lhsState) = parseFactor(tokens, opMap, fail)
           val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Problem getting lhs of term", getLine t))
         in
-          (case peekTokenLabel lhsState of
-               NONE => (SOME lhs, lhsState)
-             | SOME(Lexer.OPERATOR oper) =>
-                 (case getOpPrecedence oper opMap (getLine (hd lhsState)) of
-                      ONE => (SOME lhs, lhsState)
-                    | TWO =>
-                        let
-                          val afterOp = tl lhsState
-                          val (rhsOpt, rhsState) = parseFactor(afterOp, fail)
-                          val rhs = lazyGetOpt(rhsOpt, fn () => raiseError("Problem getting rhs of term", getLine (hd rhsState)))
-                        in
-                          (SOME (CALL(oper, [lhs, rhs])), rhsState)
-                        end)
+          (case lhsState of
+                [] => (SOME lhs, lhsState)
+              | ((Lexer.OPERATOR oper, line)::ts) =>
+                  (case getOpPrecedence oper opMap line of
+                        ONE => (SOME lhs, lhsState)
+                      | TWO =>
+                          let
+                            val (rhsOpt, rhsState) = parseFactor(ts, opMap, fail)
+                            val rhs = lazyGetOpt(rhsOpt, fn () => raiseError("Problem getting rhs of term", line))
+                          in
+                            (SOME (CALL(oper, [lhs, rhs])), rhsState)
+                          end)
              | _ => (SOME lhs, lhsState))
         end
 
-  fun parseExpression([], opMap, fail) =
+  and parseExpression([], opMap, fail) =
         if fail then
           raiseError("Expected expression but got EOF", ~1)
         else (NONE, [])
     | parseExpression(tokens as (t::ts), opMap, fail) =
         let
-          val _ = print "expr entering\n"
           val (lhsOpt, lhsState) = parseTerm(tokens, opMap, fail)
           val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Problem getting lhs of expr", getLine t))
-          val _ = print ("return to expr from term: " ^ (expToString lhs) ^ "\n")
+          (* while the current token is an operator, keep going *)
+          (*
+          fun accumulateBranches(currentLhs, currentState) =
+            case currentState of
+                 [] => (SOME currentLhs, currentState)
+               | ((Lexer.OPERATOR oper, line)::ts) =>
+                   (case getOpPrecedence oper opMap line of
+                         TWO => (SOME currentLhs, currentState)
+                       | ONE =>
+                           let
+                             val (rhsOpt, rhsState) = parseTerm(ts, opMap, fail)
+                             *)
         in
-          (case peekTokenLabel lhsState of
-               NONE => (SOME lhs, lhsState)
-             | SOME(Lexer.OPERATOR oper) =>
-                 (case getOpPrecedence oper opMap (getLine (hd lhsState)) of
-                      TWO => (SOME lhs, lhsState)
-                    | ONE =>
-                        let
-                          val afterOp = tl lhsState
-                          val (rhsOpt, rhsState) = parseTerm(afterOp, opMap, fail)
-                          val rhs = lazyGetOpt(rhsOpt, fn () => raiseError("Problem getting rhs of term", getLine (hd rhsState)))
-                        in
-                          (SOME(CALL(oper, [lhs, rhs])), rhsState)
-                        end)
-             | _ => (SOME lhs, lhsState))
+          (case lhsState of
+                [] => (SOME lhs, lhsState)
+              | ((Lexer.OPERATOR oper, line)::ts) =>
+                  (case getOpPrecedence oper opMap line of
+                        TWO => (SOME lhs, lhsState)
+                      | ONE =>
+                          let
+                            val (rhsOpt, rhsState) = parseTerm(ts, opMap, fail)
+                            val rhs = lazyGetOpt(rhsOpt, fn () => raiseError("Problem getting rhs of term", line))
+                          in
+                            (SOME(CALL(oper, [lhs, rhs])), rhsState)
+                          end)
+              | _ => (SOME lhs, lhsState))
         end
+        *)
 
   fun parse([], _) = []
     | parse((t::ts), opMap) =
-        [parseExpression(t::ts, opMap, true)]
+        [parseExpression(t::ts, opMap, MIN_OP_PRECEDENCE, true)]
 end
