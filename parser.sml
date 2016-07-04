@@ -113,9 +113,7 @@ structure Parser :> PARSER = struct
 
           (* TODO:change this to accommodate ends of expressions *)
           | (currentLeftHandSide, t'::ts') =>
-              if fail then
-                raiseError("Expected expression, got " ^ Lexer.tokenToString (getLabel t'), getLine t')
-              else (SOME currentLeftHandSide, t'::ts')
+              (SOME currentLeftHandSide, t'::ts')
       in
         gatherBranches (lhs, lhsState)
       end
@@ -147,69 +145,6 @@ structure Parser :> PARSER = struct
           if fail then
             raiseError("Expected expression atom, got " ^ (Lexer.tokenToString (getLabel t)), getLine t)
           else (NONE, t::ts))
-          (*
-  and
-
-  parseTerm([], _, fail) =
-        if fail then
-          raiseError("Expected term but got EOF", ~1)
-        else (NONE, [])
-    | parseTerm(tokens as (t::ts), opMap, fail) =
-        let
-          val (lhsOpt, lhsState) = parseFactor(tokens, opMap, fail)
-          val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Problem getting lhs of term", getLine t))
-        in
-          (case lhsState of
-                [] => (SOME lhs, lhsState)
-              | ((Lexer.OPERATOR oper, line)::ts) =>
-                  (case getOpPrecedence oper opMap line of
-                        ONE => (SOME lhs, lhsState)
-                      | TWO =>
-                          let
-                            val (rhsOpt, rhsState) = parseFactor(ts, opMap, fail)
-                            val rhs = lazyGetOpt(rhsOpt, fn () => raiseError("Problem getting rhs of term", line))
-                          in
-                            (SOME (CALL(oper, [lhs, rhs])), rhsState)
-                          end)
-             | _ => (SOME lhs, lhsState))
-        end
-
-  and parseExpression([], opMap, fail) =
-        if fail then
-          raiseError("Expected expression but got EOF", ~1)
-        else (NONE, [])
-    | parseExpression(tokens as (t::ts), opMap, fail) =
-        let
-          val (lhsOpt, lhsState) = parseTerm(tokens, opMap, fail)
-          val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Problem getting lhs of expr", getLine t))
-          (* while the current token is an operator, keep going *)
-          (*
-          fun accumulateBranches(currentLhs, currentState) =
-            case currentState of
-                 [] => (SOME currentLhs, currentState)
-               | ((Lexer.OPERATOR oper, line)::ts) =>
-                   (case getOpPrecedence oper opMap line of
-                         TWO => (SOME currentLhs, currentState)
-                       | ONE =>
-                           let
-                             val (rhsOpt, rhsState) = parseTerm(ts, opMap, fail)
-                             *)
-        in
-          (case lhsState of
-                [] => (SOME lhs, lhsState)
-              | ((Lexer.OPERATOR oper, line)::ts) =>
-                  (case getOpPrecedence oper opMap line of
-                        TWO => (SOME lhs, lhsState)
-                      | ONE =>
-                          let
-                            val (rhsOpt, rhsState) = parseTerm(ts, opMap, fail)
-                            val rhs = lazyGetOpt(rhsOpt, fn () => raiseError("Problem getting rhs of term", line))
-                          in
-                            (SOME(CALL(oper, [lhs, rhs])), rhsState)
-                          end)
-              | _ => (SOME lhs, lhsState))
-        end
-        *)
 
   fun parse([], _) = []
     | parse((t::ts), opMap) =
