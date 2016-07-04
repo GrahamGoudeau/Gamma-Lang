@@ -79,7 +79,8 @@ structure Parser :> PARSER = struct
         (ASSIGN (i, e, line)) => ("{assign " ^ i ^ " := " ^ (expToString e) ^ "}")
     | (LIT (v, _)) => ("{literal " ^ (valueToString v) ^ "}")
     | (VAR (i, _)) => ("{var " ^ i ^ "}")
-    | (CALL (i, eList, _)) => ("{function call " ^ i ^ "}")
+    | (CALL (i, eList, _)) => ("{call " ^ i ^ " params: (" ^
+        (String.concat (List.map (fn e => expToString e) eList)) ^ ") }")
 
 
   (* MAIN PARSING *)
