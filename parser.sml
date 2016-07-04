@@ -80,7 +80,7 @@ structure Parser :> PARSER = struct
     | (LIT (v, _)) => ("{literal " ^ (valueToString v) ^ "}")
     | (VAR (i, _)) => ("{var " ^ i ^ "}")
     | (CALL (i, eList, _)) => ("{call " ^ i ^ " params: (" ^
-        (String.concat (List.map (fn e => expToString e) eList)) ^ ") }")
+        (String.concat (List.map (fn e => expToString e) eList)) ^ ")}")
 
 
   (* MAIN PARSING *)
