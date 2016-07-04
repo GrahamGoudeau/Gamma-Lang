@@ -62,7 +62,8 @@ let
        ("*", (Parser.LEFT, Parser.BINARY, 2)),
        ("/", (Parser.LEFT, Parser.BINARY, 2)),
        ("~", (Parser.LEFT, Parser.UNARY, 2)),
-       ("^", (Parser.RIGHT, Parser.BINARY, 3))
+       ("^", (Parser.RIGHT, Parser.BINARY, 3)),
+       (":=", (Parser.RIGHT, Parser.BINARY, 1))
        ])
   val parseForest = Parser.parse(tokens, opMap)
 in exit SUCCESS

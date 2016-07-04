@@ -112,13 +112,13 @@ structure Parser :> PARSER = struct
                      | SOME rhs => gatherBranches(CALL (oper, [currentLeftHandSide, rhs], line), rhsState)
                 end
 
-          (* TODO:change this to accommodate ends of expressions *)
           | (currentLeftHandSide, t'::ts') =>
               (SOME currentLeftHandSide, t'::ts')
       in
         gatherBranches (lhs, lhsState)
       end
   and
+      (* TODO: change the fail parameter to be unit -> 'a *)
       parseAtom([], opMap, fail) =
         if fail then
           raiseError("Expected expression but got EOF", ~1)
@@ -134,7 +134,7 @@ structure Parser :> PARSER = struct
                  NONE => raiseError("Expected parenthesized expression", getLine t)
                | SOME e =>
                    (case expState of
-                        [] => raiseError("Unmatched \")\"", getLine t)
+                        [] => raiseError("Unmatched \"(\"", getLine t)
                       | ((Lexer.CLOSE_PAREN, l)::ts) => (SOME e, ts)
                       | ((t, l)::ts) =>
                           raiseError("Expected \")\", got " ^
@@ -142,12 +142,29 @@ structure Parser :> PARSER = struct
           end
       | Lexer.IDENTIFIER i =>
           (SOME(LIT(IDENTIFIER i, getLine t)), ts)
+      | Lexer.OPERATOR oper =>
+          (case getOpArity oper opMap (getLine t) of
+               BINARY =>
+                 raiseError("Expected unary operator, got " ^ oper, getLine t)
+             | UNARY =>
+                 let
+                   val (nextAtomOpt, nextAtomState) = parseAtom(ts, opMap, fail)
+                   val nextAtom = lazyGetOpt(nextAtomOpt, fn () => raiseError("Expected atom while parsing unary operator", getLine t))
+                 in (SOME (CALL(oper, [nextAtom], getLine t)), nextAtomState)
+                 end)
       | _ =>
           if fail then
             raiseError("Expected expression atom, got " ^ (Lexer.tokenToString (getLabel t)), getLine t)
           else (NONE, t::ts))
 
   fun parse([], _) = []
-    | parse((t::ts), opMap) =
-        [parseExpression(t::ts, opMap, MIN_OP_PRECEDENCE, true)]
+    | parse(tokens as (t::ts), opMap) =
+        (*[parseExpression(t::ts, opMap, MIN_OP_PRECEDENCE, true)]*)
+        let
+          val (exprOpt, exprState) = parseExpression(tokens, opMap, MIN_OP_PRECEDENCE, true)
+          val expr = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error while parsing expression", (getLine t)))
+          val _ = print ((expToString expr) ^ "\n")
+        in
+          expr :: parse(exprState, opMap)
+        end
 end

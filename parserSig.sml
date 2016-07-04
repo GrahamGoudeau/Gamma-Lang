@@ -17,7 +17,7 @@ signature PARSER = sig
   datatype arity = UNARY | BINARY
   type operatorMap
 
-  val parse : (Lexer.token list * operatorMap) -> (exp option * (Lexer.tokenLabel * int) list) list
+  val parse : (Lexer.token list * operatorMap) -> exp list
 
   val newOperatorMap : operatorMap
 
