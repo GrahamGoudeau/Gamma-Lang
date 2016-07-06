@@ -7,7 +7,7 @@ structure Parser :> PARSER = struct
                  | IDENTIFIER of identifier
                  | UNDEFINED
 
-  datatype exp = ASSIGN of identifier * exp * int
+  datatype exp = DEFINE of identifier * identifier list * exp list * int
                | LIT of value * int
                | VAR of identifier * int
                | CALL of identifier * exp list * int
@@ -77,8 +77,9 @@ structure Parser :> PARSER = struct
     | valueToString UNDEFINED = ("<value undefined>")
 
   val rec expToString = fn
-        (ASSIGN (i, e, line)) => ("{assign " ^ i ^ " := " ^ (expToString e) ^ "}")
-    | (LIT (v, _)) => ("{literal " ^ (valueToString v) ^ "}")
+      (LIT (v, _)) => ("{literal " ^ (valueToString v) ^ "}")
+    | (DEFINE (i, iList, eList, _)) =>
+        ("{define function " ^ i ^ "}")
     | (VAR (i, _)) => ("{var " ^ i ^ "}")
     | (CALL (i, eList, _)) => ("{call " ^ i ^ " params: (" ^
         (String.concat (List.map (fn e => expToString e) eList)) ^ ")}")

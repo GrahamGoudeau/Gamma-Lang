@@ -6,7 +6,7 @@ signature PARSER = sig
                  | IDENTIFIER of identifier
                  | UNDEFINED
 
-  datatype exp = ASSIGN of identifier * exp * int
+  datatype exp = DEFINE of identifier * identifier list * exp list * int
                | LIT of value * int
                | VAR of identifier * int
                | CALL of identifier * exp list * int
