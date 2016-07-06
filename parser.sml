@@ -12,7 +12,7 @@ structure Parser :> PARSER = struct
                | VAR of identifier * int
                | CALL of identifier * exp list * int
 
-  fun expression t = NONE
+  type module = string * exp list
 
   (* PARSER UTILITY FUNCTIONS *)
   fun fst (x, _) = x
@@ -39,8 +39,11 @@ structure Parser :> PARSER = struct
   (* OPERATOR PRECEDENCE/ASSOCIATIVITY UTILS *)
   datatype associativity = LEFT | RIGHT
   datatype arity = UNARY | BINARY
+
   type operatorMap = (string * (associativity * arity * int)) list
+
   val MIN_OP_PRECEDENCE = 1
+
   val newOperatorMap : operatorMap = []
   val addNewOperator = op ::
   val addNewOperators = op @
@@ -88,6 +91,7 @@ structure Parser :> PARSER = struct
 
 
   (* MAIN PARSING *)
+
   (* source: http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing *)
   fun parseExpression([], _, _, fail) =
         if fail then

@@ -5,7 +5,7 @@ signature LEXER = sig
     | KEYWORD of string
     | DECLARE_VAR
     | FUNCTION_START
-    | FUNCTION_END
+    | BLOCK_END
     | IMPURE
     | LAMBDA
     | INTEGER of int
@@ -14,6 +14,7 @@ signature LEXER = sig
     | CLOSE_PAREN
     | ANNOTATION
     | COMMA
+    | MODULE_BEGIN
 
   type line = int
   type token = tokenLabel * line

@@ -5,7 +5,7 @@ structure Lexer :> LEXER = struct
     | KEYWORD of string
     | DECLARE_VAR
     | FUNCTION_START
-    | FUNCTION_END
+    | BLOCK_END
     | IMPURE
     | LAMBDA
     | INTEGER of int
@@ -14,6 +14,7 @@ structure Lexer :> LEXER = struct
     | CLOSE_PAREN
     | ANNOTATION
     | COMMA
+    | MODULE_BEGIN
 
   type line = int
   type token = tokenLabel * line
@@ -23,10 +24,11 @@ structure Lexer :> LEXER = struct
   datatype lexerResult = OK of token | ERROR of string
 
   val keywordMappings = [("function", FUNCTION_START),
-                         ("end", FUNCTION_END),
+                         ("end", BLOCK_END),
                          ("lambda", LAMBDA),
                          ("impure", IMPURE),
-                         ("var", DECLARE_VAR)
+                         ("var", DECLARE_VAR),
+                         ("module", MODULE_BEGIN)
                         ]
 
   val keywords = List.map (fn (keyword, _) => keyword) keywordMappings

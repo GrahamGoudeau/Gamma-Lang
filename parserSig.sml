@@ -11,11 +11,11 @@ signature PARSER = sig
                | VAR of identifier * int
                | CALL of identifier * exp list * int
 
-  val expression : Lexer.token list -> exp option
-
   datatype associativity = LEFT | RIGHT
   datatype arity = UNARY | BINARY
   type operatorMap
+
+  type module
 
   val parse : (Lexer.token list * operatorMap) -> exp list
 
