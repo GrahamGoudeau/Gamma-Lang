@@ -19,6 +19,7 @@ structure Parser :> PARSER = struct
   fun snd (_, y) = y
   val getLabel = fst
   val getLine = snd
+
   fun intToString n =
     if n >= 0 then Int.toString n
     else ("-" ^ (Int.toString (~1 * n)))
@@ -31,6 +32,7 @@ structure Parser :> PARSER = struct
 
   fun raiseError(message, line) =
     raise ParserError(message ^ "; reported on line " ^ (intToString line))
+
   fun lazyGetOpt(NONE, f) = f()
     | lazyGetOpt(SOME t, _) = t
 

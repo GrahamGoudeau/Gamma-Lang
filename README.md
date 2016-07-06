@@ -3,6 +3,9 @@ An interpreter for an original programming language named Gamma.  Gamma emphasiz
 
 A to-do list of desired features (in no particular order):
 - [ ] Garbage collection
+- [ ] Types
+  - [ ] Type inference
+  - [ ] Type checking
 - [ ] First-class functions
 - [ ] Function definition pattern matching
 - [ ] Tail call optimization
