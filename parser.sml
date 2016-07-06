@@ -146,7 +146,30 @@ structure Parser :> PARSER = struct
                           (Lexer.tokenToString t) ^ " in expression " ^ (expToString e), l))
           end
       | Lexer.IDENTIFIER i =>
-          (SOME(LIT(IDENTIFIER i, getLine t)), ts)
+          let
+            fun gatherArgs([], _) =
+                  raiseError("Expected closing parenthesis in function call", getLine t)
+              | gatherArgs(t::ts, args) = (case getLabel t of
+                  Lexer.COMMA => gatherArgs(ts, args)
+                | Lexer.CLOSE_PAREN => (args, ts)
+                | _ =>
+                    let
+                      val (exprOpt, exprState) = parseExpression((t::ts), opMap, MIN_OP_PRECEDENCE, true)
+                      val exp = lazyGetOpt(exprOpt, fn () => raiseError("Error while parsing function argument", getLine t))
+                    in
+                      gatherArgs(exprState, args @ [exp])
+                    end)
+          in
+            (case ts of
+                  ((Lexer.OPEN_PAREN, _)::ts') =>
+                    let
+                      val (args, argsState) = gatherArgs(ts', [])
+                    in
+                      (SOME(CALL(i, args, getLine t)), argsState)
+                    end
+                | _ => (SOME(LIT(IDENTIFIER i, getLine t)), ts))
+          end
+
       | Lexer.OPERATOR oper =>
           (case getOpArity oper opMap (getLine t) of
                BINARY =>
