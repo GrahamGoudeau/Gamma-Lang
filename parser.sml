@@ -25,6 +25,7 @@ structure Parser :> PARSER = struct
 
   fun peekTokenLabel [] = NONE
     | peekTokenLabel (t::ts) = SOME (getLabel t)
+
   fun peekTokenLine [] = NONE
     | peekTokenLine (t::ts) = SOME (getLine t)
 
@@ -93,6 +94,9 @@ structure Parser :> PARSER = struct
       let
         val (lhsOpt, lhsState) = parseAtom(tokens, opMap, true)
         val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Expected term of expression", getLine t))
+
+        (* expects the first token to be a binary operator -
+         * gathers "branches" of the expression tree *)
         val rec gatherBranches = fn
             (currentLeftHandSide, []) => (SOME currentLeftHandSide, [])
           | (currentLeftHandSide, (tokens as ((Lexer.OPERATOR oper, line)::ts'))) =>
