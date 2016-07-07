@@ -6,10 +6,14 @@ signature PARSER = sig
                  | IDENTIFIER of identifier
                  | UNDEFINED
 
-  datatype exp = DEFINE of identifier * identifier list * exp list * int
+  type definition
+  datatype exp = DEFINE of definition * int(*DEFINE of identifier * identifier list * exp list * int*)
                | LIT of value * int
                | VAR of identifier * int
                | CALL of identifier * exp list * int
+
+  datatype topLevel = TOP_DEFINE of definition * int
+                    | CONSTANT of exp * int
 
   datatype associativity = LEFT | RIGHT
   datatype arity = UNARY | BINARY
@@ -17,7 +21,7 @@ signature PARSER = sig
 
   type module
 
-  val parse : (Lexer.token list * operatorMap) -> exp list
+  val parse : (Lexer.token list * operatorMap) -> topLevel list
 
   val newOperatorMap : operatorMap
 
