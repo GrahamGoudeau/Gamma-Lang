@@ -11,12 +11,12 @@ A to-do list of desired features (in no particular order):
 - [ ] Tail call optimization
 - [ ] Parsing more complicated values:
   - [ ] Real numbers (floating point)
+  - [ ] Strings
   - [ ] Tuples
 
 The syntax of Gamma is influenced by Elixir and Standard ML.  A function in Gamma:
 
-    @impure
-    function f(x, y, z) =
+    impure function f(x, y, z) =
       let a := x + y
       let b := if z then 3 else 0
       print("line three")
