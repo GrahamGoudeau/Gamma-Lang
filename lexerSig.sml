@@ -15,6 +15,7 @@ signature LEXER = sig
     | ANNOTATION
     | COMMA
     | MODULE_BEGIN
+    | CONSTANT
 
   type line = int
   type token = tokenLabel * line

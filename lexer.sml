@@ -15,6 +15,7 @@ structure Lexer :> LEXER = struct
     | ANNOTATION
     | COMMA
     | MODULE_BEGIN
+    | CONSTANT
 
   type line = int
   type token = tokenLabel * line
@@ -28,7 +29,8 @@ structure Lexer :> LEXER = struct
                          ("lambda", LAMBDA),
                          ("impure", IMPURE),
                          ("var", DECLARE_VAR),
-                         ("module", MODULE_BEGIN)
+                         ("module", MODULE_BEGIN),
+                         ("constant", CONSTANT)
                         ]
 
   val keywords = List.map (fn (keyword, _) => keyword) keywordMappings
