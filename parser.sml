@@ -103,7 +103,7 @@ structure Parser :> PARSER = struct
         else (NONE, [])
     | parseExpression((Lexer.FUNCTION_START, line)::ts, opMap, _, fail) =
         let
-          val (func, funcState) = parseFunction(ts, opMap, false)
+          val (func, funcState) = parseFunction(ts, opMap, true)
         in
           (SOME (DEFINE (func, line)), funcState)
         end
@@ -138,9 +138,9 @@ structure Parser :> PARSER = struct
       in
         gatherBranches (lhs, lhsState)
       end
-  and
+
       (* TODO: change the fail parameter to be unit -> 'a *)
-      parseAtom([], opMap, fail) =
+  and parseAtom([], opMap, fail) =
         if fail then
           raiseError("Expected expression but got EOF", ~1)
         else (NONE, [])
@@ -165,7 +165,6 @@ structure Parser :> PARSER = struct
           let
             fun gatherArgs([], _, _, _) =
                   raiseError("Expected closing parenthesis in function call", getLine t)
-              (* TODO: this allows `f(a, b, ) *)
               | gatherArgs(t::ts, args, expectExpression, firstParam) = (case getLabel t of
                   Lexer.COMMA =>
                     if expectExpression then
