@@ -21,7 +21,11 @@ structure Lexer :> LEXER = struct
 
   type line = int
   type token = tokenLabel * line
-  type lexer = (char list * line)
+  type lexer = (char list * line * string list)
+
+  fun getState (cs, _, _) = cs
+  fun getLine (_, line, _) = line
+  fun getBuiltInOperators (_, _, ops) = ops
   exception UnexpectedLexerError of string
   exception LexerError of string
 
@@ -76,7 +80,7 @@ structure Lexer :> LEXER = struct
   fun errorReport(message, lineNo, lexer) =
     (ERROR (message ^ " on line " ^ (Int.toString lineNo)), lexer)
 
-  fun newLexer cs = (cs, 1)
+  fun newLexer(cs, builtInOperators) = (cs, 1, builtInOperators)
 
   fun member list elem = List.exists (fn x => x = elem) list
 
@@ -87,8 +91,6 @@ structure Lexer :> LEXER = struct
     | peekChar (c::cs) = SOME c
 
   val charListToString = String.concat o (List.map Char.toString)
-
-  fun id x = x
 
   fun isCharLeadIdentifier c = Char.isAlpha c orelse c = #"_"
   fun isCharInRestOfIdentifier c = isCharLeadIdentifier c orelse Char.isDigit c
@@ -136,26 +138,31 @@ structure Lexer :> LEXER = struct
           accumulate(c::cs, [])
         end
 
-  fun getToken ([], r) = (OK (EOF, r), ([], r))
-    | getToken (#" "::cs, r) = getToken(cs, r)
-    | getToken (#"\t"::cs, r) = getToken(cs, r)
-    | getToken (#"("::cs, r) = (OK (OPEN_PAREN, r), (cs, r))
-    | getToken (#")"::cs, r) = (OK (CLOSE_PAREN, r), (cs, r))
-    | getToken (c::cs, r) =
-
+  fun getToken lexer =
+  let
+    val state = getState lexer
+    val r = getLine lexer
+    val builtInOperators = getBuiltInOperators lexer
+  in (case state of
+      [] => (OK (EOF, r), ([], r, builtInOperators))
+    | (#" "::cs) => getToken(cs, r, builtInOperators)
+    | (#"\t"::cs) => getToken(cs, r, builtInOperators)
+    | (#"("::cs) => (OK (OPEN_PAREN, r), (cs, r, builtInOperators))
+    | (#")"::cs) => (OK (CLOSE_PAREN, r), (cs, r, builtInOperators))
+    | (c::cs) =>
       (* NEW LINE LEXING *)
-      if Char.isSpace c then getToken(cs, r + 1)
+      if Char.isSpace c then getToken(cs, r + 1, builtInOperators)
 
       (* COMMA LEXING *)
       else if c = #"," then
-        (OK (COMMA, r), (cs, r))
+        (OK (COMMA, r), (cs, r, builtInOperators))
 
       (* STRING LEXING *)
       else if c = #"\"" then
         let
           val (remainingChars, result) = getString(cs, r)
         in
-          (OK (STRING_LITERAL result, r), (remainingChars, r))
+          (OK (STRING_LITERAL result, r), (remainingChars, r, builtInOperators))
         end
 
       (* OPERATOR LEXING *)
@@ -164,7 +171,7 @@ structure Lexer :> LEXER = struct
           val (remainingChars, result) =
             accumulateChars (member opChars) (c::cs) charListToString
         in
-          (OK (OPERATOR result, r), (remainingChars, r))
+          (OK (OPERATOR result, r), (remainingChars, r, builtInOperators))
         end
 
       (* INTEGER LEXING *)
@@ -174,32 +181,38 @@ structure Lexer :> LEXER = struct
             accumulateChars (Char.isDigit) (c::cs) (Int.fromString o charListToString)
         in
           (case result of
-                NONE => errorReport("Unexpected error while lexing integer", r, ((c::cs), r))
+                NONE => errorReport("Unexpected error while lexing integer", r, ((c::cs), r, builtInOperators))
               | SOME i =>
-                  (OK ((INTEGER i), r), (cs, r)))
+                  (OK ((INTEGER i), r), (cs, r, builtInOperators)))
         end
 
       (* IDENTIFIER LEXING *)
       else if isNextTokenIdentifier (c::cs) then
         let
           val (remainingChars, result) = accumulateChars isCharInRestOfIdentifier (c::cs) charListToString
-        in (OK (IDENTIFIER result, r), (remainingChars, r))
+        in
+          if (member builtInOperators result) then
+            (OK (OPERATOR result, r), (remainingChars, r, builtInOperators))
+           else
+             (OK (IDENTIFIER result, r), (remainingChars, r, builtInOperators))
         end
 
       (* ANNOTATION LEXING *)
       else if c = #"@" then
-        (OK (ANNOTATION, r), (cs, r))
+        (OK (ANNOTATION, r), (cs, r, builtInOperators))
 
       (* KEYWORD LEXING *)
       else if isNextTokenKeyword (c::cs) then
         let
           val (remainingChars, result) = accumulateChars isCharLeadIdentifier (c::cs) (getKeywordLabel o charListToString)
-          val remainingLexer = (remainingChars, r)
+          val remainingLexer = (remainingChars, r, builtInOperators)
         in (case result of
                  NONE => (ERROR "Unexpected error getting keyword", remainingLexer)
                | SOME(k) => (OK (k, r), remainingLexer))
         end
 
 
-      else errorReport(("Unrecognized input character \"" ^ (Char.toString c) ^ "\""), r, (c::cs, r))
+      else errorReport(("Unrecognized input character \"" ^ (Char.toString c) ^ "\""), r, (c::cs, r, builtInOperators)))
+  end
+
 end

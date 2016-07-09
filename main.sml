@@ -40,9 +40,9 @@ fun handleErrors f = f()
     | (Parser.ParserError s) => exitError ("Parser error:\n\t'" ^ s ^ "'")
     | (UnexpectedError s) => exitError ("Found a bug...\n\t'" ^ s ^ "'")
 
-fun buildTokens inputChars =
+fun buildTokens inputChars builtInOperators =
 let
-  val lexer = Lexer.newLexer inputChars
+  val lexer = Lexer.newLexer(inputChars, builtInOperators)
   fun buildTokens (Lexer.OK (Lexer.EOF, _), _) = []
     | buildTokens (Lexer.OK token, newLexer) =
         token :: (buildTokens (Lexer.getToken newLexer))
@@ -53,17 +53,22 @@ end
 fun main() =
 let
   val fileName = parseArgs (CommandLine.arguments())
-  val inputChars = getInputChars fileName
-  val tokens = buildTokens inputChars
-  val opMap = Parser.addNewOperators(Parser.newOperatorMap,
+  val operators =
       [("+", (Parser.LEFT, Parser.BINARY, 1)),
        ("-", (Parser.LEFT, Parser.BINARY, 1)),
        ("*", (Parser.LEFT, Parser.BINARY, 2)),
        ("/", (Parser.LEFT, Parser.BINARY, 2)),
        ("~", (Parser.LEFT, Parser.UNARY, 2)),
        ("^", (Parser.RIGHT, Parser.BINARY, 3)),
+       ("and", (Parser.LEFT, Parser.BINARY, 4)),
+       ("or", (Parser.LEFT, Parser.BINARY, 4)),
+       ("not", (Parser.LEFT, Parser.UNARY, 4)),
        (":=", (Parser.RIGHT, Parser.BINARY, 1))
-       ])
+       ]
+  val builtInOpStrs = List.map (fn (str, _) => str) operators
+  val opMap = Parser.addNewOperators(Parser.newOperatorMap, operators)
+  val inputChars = getInputChars fileName
+  val tokens = buildTokens inputChars builtInOpStrs
   val parseForest = Parser.parse(tokens, opMap)
 in exit SUCCESS
 end

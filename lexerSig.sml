@@ -25,7 +25,7 @@ signature LEXER = sig
 
   datatype lexerResult = OK of token | ERROR of string
 
-  val newLexer : char list -> lexer
+  val newLexer : (char list * string list) -> lexer
   val getToken : lexer -> (lexerResult * lexer)
 
   val tokenToString : tokenLabel -> string
