@@ -33,11 +33,10 @@ in
   result
 end
 
-exception LexerError of string
 exception UnexpectedError of string
 
 fun handleErrors f = f()
-  handle (LexerError s) => exitError ("Lexer error:\n\t'" ^ s ^ "'")
+  handle (Lexer.LexerError s) => exitError ("Lexer error:\n\t'" ^ s ^ "'")
     | (Parser.ParserError s) => exitError ("Parser error:\n\t'" ^ s ^ "'")
     | (UnexpectedError s) => exitError ("Found a bug...\n\t'" ^ s ^ "'")
 
@@ -47,7 +46,7 @@ let
   fun buildTokens (Lexer.OK (Lexer.EOF, _), _) = []
     | buildTokens (Lexer.OK token, newLexer) =
         token :: (buildTokens (Lexer.getToken newLexer))
-    | buildTokens ((Lexer.ERROR reason), _) = raise (LexerError reason)
+    | buildTokens ((Lexer.ERROR reason), _) = raise (Lexer.LexerError reason)
 in buildTokens (Lexer.getToken lexer)
 end
 

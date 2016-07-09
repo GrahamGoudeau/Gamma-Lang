@@ -17,11 +17,13 @@ structure Lexer :> LEXER = struct
     | COMMA
     | MODULE_BEGIN
     | CONSTANT
+    | STRING_LITERAL of string
 
   type line = int
   type token = tokenLabel * line
   type lexer = (char list * line)
   exception UnexpectedLexerError of string
+  exception LexerError of string
 
   datatype lexerResult = OK of token | ERROR of string
 
@@ -65,6 +67,7 @@ structure Lexer :> LEXER = struct
     | tokenToString CLOSE_PAREN = ")"
     | tokenToString ANNOTATION = "@ (annotation)"
     | tokenToString COMMA = "{comma ','}"
+    | tokenToString (STRING_LITERAL s) = ("\"" ^ s ^ "\"")
     | tokenToString label =
         (case getLabelString label of
               NONE => raise (UnexpectedLexerError "Unexpected error getting label string")
@@ -121,6 +124,18 @@ structure Lexer :> LEXER = struct
   in isNotEmpty andalso (member keywords potentialKeyword)
   end
 
+  fun getString([], r) =
+        raise LexerError("Got EOF while reading string literal on line " ^ (Int.toString r))
+    | getString(c::cs, r) =
+        let
+          fun accumulate(#"\""::cs, acc) = (cs, (String.implode o List.rev) acc)
+            | accumulate(c::cs, acc) = accumulate(cs, c::acc)
+            | accumulate([], acc) =
+                raise LexerError("Got EOF while reading string literal on line " ^ (Int.toString r))
+        in
+          accumulate(c::cs, [])
+        end
+
   fun getToken ([], r) = (OK (EOF, r), ([], r))
     | getToken (#" "::cs, r) = getToken(cs, r)
     | getToken (#"\t"::cs, r) = getToken(cs, r)
@@ -134,6 +149,14 @@ structure Lexer :> LEXER = struct
       (* COMMA LEXING *)
       else if c = #"," then
         (OK (COMMA, r), (cs, r))
+
+      (* STRING LEXING *)
+      else if c = #"\"" then
+        let
+          val (remainingChars, result) = getString(cs, r)
+        in
+          (OK (STRING_LITERAL result, r), (remainingChars, r))
+        end
 
       (* OPERATOR LEXING *)
       else if member opChars c then

@@ -3,6 +3,7 @@ signature PARSER = sig
 
   datatype value = INTEGER of int
                  | BOOL of bool
+                 | STRING_LITERAL of string
                  | IDENTIFIER of identifier
                  | UNDEFINED
 

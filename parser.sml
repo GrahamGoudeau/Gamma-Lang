@@ -4,6 +4,7 @@ structure Parser :> PARSER = struct
 
   datatype value = INTEGER of int
                  | BOOL of bool
+                 | STRING_LITERAL of string
                  | IDENTIFIER of identifier
                  | UNDEFINED
 
@@ -79,11 +80,11 @@ structure Parser :> PARSER = struct
        | SOME (_, (_, arity, _)) => arity
   end
 
-  fun valueToString (INTEGER i) = ("<value int " ^ (intToString i) ^ ">")
-    | valueToString (BOOL b) = ("<value bool " ^ (if b then "t" else "f") ^
-    ">")
-    | valueToString (IDENTIFIER i) = ("<value ident " ^ i ^ ">")
-    | valueToString UNDEFINED = ("<value undefined>")
+  fun valueToString (INTEGER i) = ("<int " ^ (intToString i) ^ ">")
+    | valueToString (BOOL b) = ("<bool " ^ (if b then "t" else "f") ^ ">")
+    | valueToString (STRING_LITERAL s) = ("<string \"" ^ s ^ "\">")
+    | valueToString (IDENTIFIER i) = ("<ident " ^ i ^ ">")
+    | valueToString UNDEFINED = ("<undefined>")
 
   val rec expToString = fn
       (LIT (v, _)) => ("{literal " ^ (valueToString v) ^ "}")
@@ -147,6 +148,8 @@ structure Parser :> PARSER = struct
     | parseAtom(t::ts, opMap, fail) = (case getLabel t of
         Lexer.INTEGER i =>
           (SOME(LIT(INTEGER i, getLine t)), ts)
+      | Lexer.STRING_LITERAL s =>
+          (SOME(LIT(STRING_LITERAL s, getLine t)), ts)
       | Lexer.OPEN_PAREN =>
           let
             val (exp, expState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, false)

@@ -17,6 +17,7 @@ signature LEXER = sig
     | COMMA
     | MODULE_BEGIN
     | CONSTANT
+    | STRING_LITERAL of string
 
   type line = int
   type token = tokenLabel * line
@@ -28,4 +29,5 @@ signature LEXER = sig
   val getToken : lexer -> (lexerResult * lexer)
 
   val tokenToString : tokenLabel -> string
+  exception LexerError of string
 end
