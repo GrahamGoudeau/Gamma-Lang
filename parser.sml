@@ -101,6 +101,12 @@ structure Parser :> PARSER = struct
         if fail then
           raiseError("Expected expression, got EOF", ~1)
         else (NONE, [])
+    | parseExpression((Lexer.FUNCTION_START, line)::ts, opMap, _, fail) =
+        let
+          val (func, funcState) = parseFunction(ts, opMap, false)
+        in
+          (SOME (DEFINE (func, line)), funcState)
+        end
     | parseExpression(tokens as (t::ts), opMap, minPrecedence, fail) =
       let
         val (lhsOpt, lhsState) = parseAtom(tokens, opMap, true)
@@ -157,24 +163,32 @@ structure Parser :> PARSER = struct
           end
       | Lexer.IDENTIFIER i =>
           let
-            fun gatherArgs([], _) =
+            fun gatherArgs([], _, _, _) =
                   raiseError("Expected closing parenthesis in function call", getLine t)
               (* TODO: this allows `f(a, b, ) *)
-              | gatherArgs(t::ts, args) = (case getLabel t of
-                  Lexer.COMMA => gatherArgs(ts, args)
-                | Lexer.CLOSE_PAREN => (args, ts)
+              | gatherArgs(t::ts, args, expectExpression, firstParam) = (case getLabel t of
+                  Lexer.COMMA =>
+                    if expectExpression then
+                      raiseError("Expected expression in function argument list", getLine t)
+                    else
+                      gatherArgs(ts, args, true, false)
+                | Lexer.CLOSE_PAREN =>
+                    if expectExpression andalso (not firstParam) then
+                      raiseError("Expected expression in function argument list", getLine t)
+                    else
+                      (args, ts)
                 | _ =>
                     let
                       val (exprOpt, exprState) = parseExpression((t::ts), opMap, MIN_OP_PRECEDENCE, true)
                       val exp = lazyGetOpt(exprOpt, fn () => raiseError("Error while parsing function argument", getLine t))
                     in
-                      gatherArgs(exprState, args @ [exp])
+                      gatherArgs(exprState, args @ [exp], false, false)
                     end)
           in
             (case ts of
                   ((Lexer.OPEN_PAREN, _)::ts') =>
                     let
-                      val (args, argsState) = gatherArgs(ts', [])
+                      val (args, argsState) = gatherArgs(ts', [], true, true)
                     in
                       (SOME(CALL(i, args, getLine t)), argsState)
                     end
@@ -197,7 +211,7 @@ structure Parser :> PARSER = struct
           else (NONE, t::ts))
 
   (* expects the tokens to start immediately after the FUNCTION_START token *)
-  fun parseFunction([], _, _) =
+  and parseFunction([], _, _) =
         raiseError("Expected function definition, got EOF", ~1)
     | parseFunction((Lexer.IDENTIFIER funcName, line)::ts, opMap, isPure) =
       let
@@ -216,7 +230,7 @@ structure Parser :> PARSER = struct
               raiseError("Syntax error parsing parameter list- expected identifier and comma or identifier and close parenthesis", getLine t)
 
         fun getExps ([], _) =
-              raiseError("Expected expression or end of function block, got EOF", ~1)
+              raiseError("Expected expression or end of function block, got EOF", line)
           | getExps (tokens as ((Lexer.BLOCK_END, _)::ts), acc) =
               (acc, tokens)
           | getExps (t::ts, acc) =
