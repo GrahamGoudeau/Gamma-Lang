@@ -6,6 +6,7 @@ signature LEXER = sig
     | DECLARE_VAR
     | FUNCTION_START
     | BLOCK_END
+    | BLOCK_BEGIN
     | IMPURE
     | LAMBDA
     | INTEGER of int

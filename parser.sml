@@ -229,7 +229,7 @@ structure Parser :> PARSER = struct
 
         val openingParenState = expect(Lexer.OPEN_PAREN, ts)
         val (paramList, paramListState) = getParams openingParenState []
-        val equalsSignState = expect(Lexer.OPERATOR "=", paramListState)
+        val equalsSignState = expect(Lexer.BLOCK_BEGIN, paramListState)
         val (exps, expsState) = getExps(equalsSignState, [])
         val afterFuncState = expect(Lexer.BLOCK_END, expsState)
       in ((funcName, paramList, exps, isPure), afterFuncState)

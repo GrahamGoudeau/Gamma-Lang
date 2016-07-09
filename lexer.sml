@@ -6,6 +6,7 @@ structure Lexer :> LEXER = struct
     | DECLARE_VAR
     | FUNCTION_START
     | BLOCK_END
+    | BLOCK_BEGIN
     | IMPURE
     | LAMBDA
     | INTEGER of int
@@ -30,7 +31,8 @@ structure Lexer :> LEXER = struct
                          ("impure", IMPURE),
                          ("var", DECLARE_VAR),
                          ("module", MODULE_BEGIN),
-                         ("constant", CONSTANT)
+                         ("constant", CONSTANT),
+                         ("do", BLOCK_BEGIN)
                         ]
 
   val keywords = List.map (fn (keyword, _) => keyword) keywordMappings
