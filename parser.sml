@@ -251,6 +251,12 @@ structure Parser :> PARSER = struct
     | parseFunction(t::ts, _, _) =
         raiseError("Expected function name in declaration, got " ^ ((Lexer.tokenToString o getLabel) t), getLine t)
 
+  val parseExpression : (Lexer.token list * operatorMap * int * bool) -> (exp option * Lexer.token list) = parseExpression
+
+  val parseAtom : (Lexer.token list * operatorMap * bool) -> (exp option * Lexer.token list) = parseAtom
+
+  val parseFunction : (Lexer.token list * operatorMap * bool) -> (definition * Lexer.token list) = parseFunction
+
   fun parse([], _) = []
     | parse(t::ts, opMap) = (case getLabel t of
           Lexer.IMPURE => (case ts of
