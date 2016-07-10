@@ -43,6 +43,8 @@ structure Lexer :> LEXER = struct
 
   val keywords = List.map (fn (keyword, _) => keyword) keywordMappings
 
+  val commentChar = #"#"
+
   fun getKeywordLabel keyword =
   let
     val tupleOption = List.find (fn (str, _) => str = keyword) keywordMappings
@@ -163,6 +165,15 @@ structure Lexer :> LEXER = struct
           val (remainingChars, result) = getString(cs, r)
         in
           (OK (STRING_LITERAL result, r), (remainingChars, r, builtInOperators))
+        end
+
+      (* COMMENT LEXING *)
+      else if c = commentChar then
+        let
+          val (afterComment, _) =
+            accumulateChars (fn c => c <> #"\n") cs (fn x => x)
+        in
+          getToken(afterComment, r, builtInOperators)
         end
 
       (* OPERATOR LEXING *)
