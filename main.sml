@@ -1,5 +1,5 @@
 fun printUsage() =
-  (Utils.printLn ("Usage: gamma {input file name}"); exit FAIL)
+  (Utils.printLn ("Usage: gamma {input file name}"); Utils.exit Utils.FAIL)
 
 fun parseArgs [fileName] = fileName
   | parseArgs _ = printUsage()
@@ -7,7 +7,7 @@ fun parseArgs [fileName] = fileName
 fun getInputChars fileName =
 let
   val inputStream = TextIO.openIn fileName
-    handle Io => Utils.error(INTERNAL, "Problem opening file '" ^ fileName ^ "'")
+    handle Io => Utils.error(Utils.INTERNAL, "Problem opening file '" ^ fileName ^ "'")
 
   fun getChars stream =
   let
@@ -15,7 +15,7 @@ let
       | accumulate c = (Option.valOf c) :: (accumulate (TextIO.input1 stream))
   in
     accumulate (TextIO.input1 stream)
-      handle _ => Utils.error(INTERNAL, "Problem reading from file '" ^ fileName ^ "'")
+      handle _ => Utils.error(Utils.INTERNAL, "Problem reading from file '" ^ fileName ^ "'")
   end
   val result = getChars inputStream
   val _ = TextIO.closeIn inputStream
@@ -52,7 +52,7 @@ let
   val inputChars = getInputChars fileName
   val tokens = buildTokens inputChars builtInOpStrs fileName
   val parseForest = Parser.parse(tokens, opMap)
-in exit SUCCESS
+in Utils.exit Utils.SUCCESS
 end
 
 val _ = main()
