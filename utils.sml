@@ -1,4 +1,14 @@
 structure Utils = struct
+  exception UnexpectedError
+
+  val github = "github.com/GrahamGoudeau/Gamma-Lang"
+
+  fun printLn s = print (s ^ "\n")
+
+  fun unexpectedError message =
+    (printLn ("An unexpected error occurred or you found a bug; please report at " ^ github ^
+        "\n\"" ^ message ^ "\""); raise UnexpectedError)
+
   fun intToString n =
     if n > 0 then Int.toString n
     else ("-" ^ (Int.toString (~1 * n)))
@@ -11,7 +21,10 @@ structure Utils = struct
     | moduleToString (LEXER _) = "Lexer"
     | moduleToString (PARSER _) = "Parser"
 
-  fun printLn s => print (s ^ "\n")
+  datatype exitCode = FAIL | SUCCESS
+
+  fun exit FAIL = OS.Process.exit OS.Process.failure
+    | exit SUCCESS = OS.Process.exit OS.Process.success
 
   fun error(module, message) =
   let
@@ -29,10 +42,5 @@ structure Utils = struct
     | LEXER(fileName, line) =>
         ((printAndFail o errorWithFileLine) (module, fileName, line)))
   end
-
-  datatype exitCode = FAIL | SUCCESS
-
-  fun exit FAIL = OS.Process.exit OS.Process.failure
-    | exit SUCCESS = OS.Process.exit OS.Process.success
 
 end

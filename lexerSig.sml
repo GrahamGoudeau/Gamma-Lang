@@ -23,11 +23,9 @@ signature LEXER = sig
   type token = tokenLabel * line
   type lexer
 
-  datatype lexerResult = OK of token | ERROR of string
-
-  val newLexer : (char list * string list) -> lexer
-  val getToken : lexer -> (lexerResult * lexer)
+  (* input characters * built in operators * file name *)
+  val newLexer : (char list * string list * string) -> lexer
+  val getToken : lexer -> (token * lexer)
 
   val tokenToString : tokenLabel -> string
-  exception LexerError of string
 end
