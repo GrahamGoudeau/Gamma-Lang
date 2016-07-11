@@ -25,10 +25,6 @@ structure Parser :> PARSER = struct
   val getLabel = fst
   val getLine = snd
 
-  fun intToString n =
-    if n >= 0 then Int.toString n
-    else ("-" ^ (Int.toString (~1 * n)))
-
   fun peekTokenLabel [] = NONE
     | peekTokenLabel (t::ts) = SOME (getLabel t)
 
