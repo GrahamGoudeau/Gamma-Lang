@@ -22,7 +22,7 @@ signature PARSER = sig
 
   type module
 
-  val parse : (Lexer.token list * operatorMap) -> topLevel list
+  val parse : (Lexer.token list * operatorMap * string) -> topLevel list
 
   val newOperatorMap : operatorMap
 

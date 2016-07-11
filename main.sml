@@ -1,15 +1,5 @@
-datatype exitCode = FAIL | SUCCESS
-
-fun exit FAIL = OS.Process.exit OS.Process.failure
-  | exit SUCCESS = OS.Process.exit OS.Process.success
-
-fun println s = print (s ^ "\n")
-
-fun exitError message =
-  (println message; exit FAIL)
-
 fun printUsage() =
-  (println ("Usage: gamma {input file name}"); exit FAIL)
+  (Utils.printLn ("Usage: gamma {input file name}"); Utils.exit Utils.FAIL)
 
 fun parseArgs [fileName] = fileName
   | parseArgs _ = printUsage()
@@ -17,7 +7,7 @@ fun parseArgs [fileName] = fileName
 fun getInputChars fileName =
 let
   val inputStream = TextIO.openIn fileName
-    handle Io => exitError ("Problem opening file '" ^ fileName ^ "'")
+    handle Io => Utils.error(Utils.INTERNAL, "Problem opening file '" ^ fileName ^ "'")
 
   fun getChars stream =
   let
@@ -25,7 +15,7 @@ let
       | accumulate c = (Option.valOf c) :: (accumulate (TextIO.input1 stream))
   in
     accumulate (TextIO.input1 stream)
-      handle _ => exitError ("Problem reading from file '" ^ fileName ^ "'")
+      handle _ => Utils.error(Utils.INTERNAL, "Problem reading from file '" ^ fileName ^ "'")
   end
   val result = getChars inputStream
   val _ = TextIO.closeIn inputStream
@@ -33,20 +23,12 @@ in
   result
 end
 
-exception UnexpectedError of string
-
-fun handleErrors f = f()
-  handle (Lexer.LexerError s) => exitError ("Lexer error:\n\t'" ^ s ^ "'")
-    | (Parser.ParserError s) => exitError ("Parser error:\n\t'" ^ s ^ "'")
-    | (UnexpectedError s) => exitError ("Found a bug...\n\t'" ^ s ^ "'")
-
-fun buildTokens inputChars builtInOperators =
+fun buildTokens inputChars builtInOperators fileName =
 let
-  val lexer = Lexer.newLexer(inputChars, builtInOperators)
-  fun buildTokens (Lexer.OK (Lexer.EOF, _), _) = []
-    | buildTokens (Lexer.OK token, newLexer) =
+  val lexer = Lexer.newLexer(inputChars, builtInOperators, fileName)
+  fun buildTokens ((Lexer.EOF, _), _) = []
+    | buildTokens (token, newLexer) =
         token :: (buildTokens (Lexer.getToken newLexer))
-    | buildTokens ((Lexer.ERROR reason), _) = raise (Lexer.LexerError reason)
 in buildTokens (Lexer.getToken lexer)
 end
 
@@ -68,9 +50,9 @@ let
   val builtInOpStrs = List.map (fn (str, _) => str) operators
   val opMap = Parser.addNewOperators(Parser.newOperatorMap, operators)
   val inputChars = getInputChars fileName
-  val tokens = buildTokens inputChars builtInOpStrs
-  val parseForest = Parser.parse(tokens, opMap)
-in exit SUCCESS
+  val tokens = buildTokens inputChars builtInOpStrs fileName
+  val parseForest = Parser.parse(tokens, opMap, fileName)
+in Utils.exit Utils.SUCCESS
 end
 
-val _ = handleErrors main
+val _ = main()
