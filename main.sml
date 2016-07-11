@@ -51,7 +51,7 @@ let
   val opMap = Parser.addNewOperators(Parser.newOperatorMap, operators)
   val inputChars = getInputChars fileName
   val tokens = buildTokens inputChars builtInOpStrs fileName
-  val parseForest = Parser.parse(tokens, opMap)
+  val parseForest = Parser.parse(tokens, opMap, fileName)
 in Utils.exit Utils.SUCCESS
 end
 

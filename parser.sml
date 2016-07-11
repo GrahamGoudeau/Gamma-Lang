@@ -31,8 +31,8 @@ structure Parser :> PARSER = struct
   fun peekTokenLine [] = NONE
     | peekTokenLine (t::ts) = SOME (getLine t)
 
-  fun raiseError(message, line) =
-    raise ParserError(message ^ "; reported on line " ^ (intToString line))
+  fun raiseError(message, line, fileName) =
+    Utils.error(Utils.PARSER(fileName, line), message)
 
   fun lazyGetOpt(NONE, f) = f()
     | lazyGetOpt(SOME t, _) = t
@@ -49,34 +49,34 @@ structure Parser :> PARSER = struct
   val addNewOperator = op ::
   val addNewOperators = op @
 
-  fun getOpAssoc oper opMap line =
+  fun getOpAssoc oper opMap line fileName =
   let
     val resultOpt = List.find (fn (testOper, _) => testOper = oper) opMap
   in
     case resultOpt of
-         NONE => raiseError("Unknown operator " ^ oper, line)
+         NONE => raiseError("Unknown operator " ^ oper, line, fileName)
        | SOME (_, (assoc, _, _)) => assoc
   end
 
-  fun getOpPrecedence oper opMap line =
+  fun getOpPrecedence oper opMap line fileName =
   let
     val resultOpt = List.find (fn (testOper, _) => testOper = oper) opMap
   in
     case resultOpt of
-         NONE => raiseError("Unknown operator " ^ oper, line)
+         NONE => raiseError("Unknown operator " ^ oper, line, fileName)
        | (SOME (_, (_, _, prec))) => prec
   end
 
-  fun getOpArity oper opMap line =
+  fun getOpArity oper opMap line fileName =
   let
     val resultOpt = List.find (fn (testOper, _) => testOper = oper) opMap
   in
     case resultOpt of
-         NONE => raiseError("Unknown operator " ^ oper, line)
+         NONE => raiseError("Unknown operator " ^ oper, line, fileName)
        | SOME (_, (_, arity, _)) => arity
   end
 
-  fun valueToString (INTEGER i) = ("<int " ^ (intToString i) ^ ">")
+  fun valueToString (INTEGER i) = ("<int " ^ (Utils.intToString i) ^ ">")
     | valueToString (BOOL b) = ("<bool " ^ (if b then "t" else "f") ^ ">")
     | valueToString (STRING_LITERAL s) = ("<string \"" ^ s ^ "\">")
     | valueToString (IDENTIFIER i) = ("<ident " ^ i ^ ">")
@@ -94,36 +94,36 @@ structure Parser :> PARSER = struct
   (* MAIN PARSING *)
 
   (* source: http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing *)
-  fun parseExpression([], _, _, fail) =
+  fun parseExpression([], _, _, fileName, fail) =
         if fail then
-          raiseError("Expected expression, got EOF", ~1)
+          raiseError("Expected expression, got EOF", ~1, fileName)
         else (NONE, [])
-    | parseExpression((Lexer.FUNCTION_START, line)::ts, opMap, _, fail) =
+    | parseExpression((Lexer.FUNCTION_START, line)::ts, opMap, _, fileName, fail) =
         let
-          val (func, funcState) = parseFunction(ts, opMap, true)
+          val (func, funcState) = parseFunction(ts, opMap, true, fileName)
         in
           (SOME (DEFINE (func, line)), funcState)
         end
-    | parseExpression(tokens as (t::ts), opMap, minPrecedence, fail) =
+    | parseExpression(tokens as (t::ts), opMap, minPrecedence, fileName, fail) =
       let
-        val (lhsOpt, lhsState) = parseAtom(tokens, opMap, true)
-        val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Expected term of expression", getLine t))
+        val (lhsOpt, lhsState) = parseAtom(tokens, opMap, fileName, true)
+        val lhs = lazyGetOpt(lhsOpt, fn () => raiseError("Expected term of expression", getLine t, fileName))
 
         (* expects the first token to be a binary operator -
          * gathers "branches" of the expression tree *)
         val rec gatherBranches = fn
             (currentLeftHandSide, []) => (SOME currentLeftHandSide, [])
           | (currentLeftHandSide, (tokens as ((Lexer.OPERATOR oper, line)::ts'))) =>
-              if (getOpArity oper opMap line) <> BINARY orelse
-                     (getOpPrecedence oper opMap line) < minPrecedence then
+              if (getOpArity oper opMap line fileName) <> BINARY orelse
+                     (getOpPrecedence oper opMap line fileName) < minPrecedence then
                 (SOME currentLeftHandSide, tokens)
               else
                 let
-                  val currentPrec = getOpPrecedence oper opMap line
-                  val currentAssoc = getOpAssoc oper opMap line
+                  val currentPrec = getOpPrecedence oper opMap line fileName
+                  val currentAssoc = getOpAssoc oper opMap line fileName
                   val newMinPrec = if currentAssoc = LEFT then currentPrec + 1 else currentPrec
 
-                  val (rhsOpt, rhsState) = parseExpression(ts', opMap, newMinPrec, fail)
+                  val (rhsOpt, rhsState) = parseExpression(ts', opMap, newMinPrec, fileName, fail)
                 in
                   case rhsOpt of
                        NONE => (SOME currentLeftHandSide, tokens)
@@ -137,48 +137,48 @@ structure Parser :> PARSER = struct
       end
 
       (* TODO: change the fail parameter to be unit -> 'a *)
-  and parseAtom([], opMap, fail) =
+  and parseAtom([], opMap, fileName, fail) =
         if fail then
-          raiseError("Expected expression but got EOF", ~1)
+          raiseError("Expected expression but got EOF", ~1, fileName)
         else (NONE, [])
-    | parseAtom(t::ts, opMap, fail) = (case getLabel t of
+    | parseAtom(t::ts, opMap, fileName, fail) = (case getLabel t of
         Lexer.INTEGER i =>
           (SOME(LIT(INTEGER i, getLine t)), ts)
       | Lexer.STRING_LITERAL s =>
           (SOME(LIT(STRING_LITERAL s, getLine t)), ts)
       | Lexer.OPEN_PAREN =>
           let
-            val (exp, expState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, false)
+            val (exp, expState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, fileName, false)
           in
             case exp of
-                 NONE => raiseError("Expected parenthesized expression", getLine t)
+                 NONE => raiseError("Expected parenthesized expression", getLine t, fileName)
                | SOME e =>
                    (case expState of
-                        [] => raiseError("Unmatched \"(\"", getLine t)
+                        [] => raiseError("Unmatched \"(\"", getLine t, fileName)
                       | ((Lexer.CLOSE_PAREN, l)::ts) => (SOME e, ts)
                       | ((t, l)::ts) =>
                           raiseError("Expected \")\", got " ^
-                          (Lexer.tokenToString t) ^ " in expression " ^ (expToString e), l))
+                          (Lexer.tokenToString t) ^ " in expression " ^ (expToString e), l, fileName))
           end
       | Lexer.IDENTIFIER i =>
           let
             fun gatherArgs([], _, _, _) =
-                  raiseError("Expected closing parenthesis in function call", getLine t)
+                  raiseError("Expected closing parenthesis in function call", getLine t, fileName)
               | gatherArgs(t::ts, args, expectExpression, firstParam) = (case getLabel t of
                   Lexer.COMMA =>
                     if expectExpression then
-                      raiseError("Expected expression in function argument list", getLine t)
+                      raiseError("Expected expression in function argument list", getLine t, fileName)
                     else
                       gatherArgs(ts, args, true, false)
                 | Lexer.CLOSE_PAREN =>
                     if expectExpression andalso (not firstParam) then
-                      raiseError("Expected expression in function argument list", getLine t)
+                      raiseError("Expected expression in function argument list", getLine t, fileName)
                     else
                       (args, ts)
                 | _ =>
                     let
-                      val (exprOpt, exprState) = parseExpression((t::ts), opMap, MIN_OP_PRECEDENCE, true)
-                      val exp = lazyGetOpt(exprOpt, fn () => raiseError("Error while parsing function argument", getLine t))
+                      val (exprOpt, exprState) = parseExpression((t::ts), opMap, MIN_OP_PRECEDENCE, fileName, true)
+                      val exp = lazyGetOpt(exprOpt, fn () => raiseError("Error while parsing function argument", getLine t, fileName))
                     in
                       gatherArgs(exprState, args @ [exp], false, false)
                     end)
@@ -194,47 +194,49 @@ structure Parser :> PARSER = struct
           end
 
       | Lexer.OPERATOR oper =>
-          (case getOpArity oper opMap (getLine t) of
+          (case getOpArity oper opMap (getLine t) fileName of
                BINARY =>
-                 raiseError("Expected unary operator, got " ^ oper, getLine t)
+                 raiseError("Expected unary operator, got " ^ oper, getLine t, fileName)
              | UNARY =>
                  let
-                   val (nextAtomOpt, nextAtomState) = parseAtom(ts, opMap, fail)
-                   val nextAtom = lazyGetOpt(nextAtomOpt, fn () => raiseError("Expected atom while parsing unary operator", getLine t))
+                   val (nextAtomOpt, nextAtomState) = parseAtom(ts, opMap, fileName, fail)
+                   val nextAtom = lazyGetOpt(nextAtomOpt, fn () =>
+                   raiseError("Expected atom while parsing unary operator", getLine t, fileName))
                  in (SOME (CALL(oper, [nextAtom], getLine t)), nextAtomState)
                  end)
       | _ =>
           if fail then
-            raiseError("Expected expression identifier, literal, or operator; got " ^ (Lexer.tokenToString (getLabel t)), getLine t)
+            raiseError("Expected expression identifier, literal, or operator; got " ^ (Lexer.tokenToString (getLabel t)), getLine t, fileName)
           else (NONE, t::ts))
 
   (* expects the tokens to start immediately after the FUNCTION_START token *)
-  and parseFunction([], _, _) =
-        raiseError("Expected function definition, got EOF", ~1)
-    | parseFunction((Lexer.IDENTIFIER funcName, line)::ts, opMap, isPure) =
+  and parseFunction([], _, _, fileName) =
+        raiseError("Expected function definition, got EOF", ~1, fileName)
+    | parseFunction((Lexer.IDENTIFIER funcName, line)::ts, opMap, isPure, fileName) =
       let
-        fun expect(expectToken, []) = raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^ ", got EOF", ~1)
+        fun expect(expectToken, []) = raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^ ", got EOF", ~1, fileName)
           | expect(expectToken, t::ts) =
               if expectToken = (getLabel t) then ts
-              else raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^ ", got " ^ ((Lexer.tokenToString o getLabel) t), getLine t)
+              else raiseError("Expected token " ^ (Lexer.tokenToString
+              expectToken) ^ ", got " ^ ((Lexer.tokenToString o getLabel) t), getLine t, fileName)
 
         fun getParams [] _ =
-              raiseError("Expected parameter list, got EOF", ~1)
+              raiseError("Expected parameter list, got EOF", ~1, fileName)
           | getParams ((Lexer.CLOSE_PAREN, line)::ts') acc = (acc, ts')
           | getParams ((Lexer.IDENTIFIER i, line)::(Lexer.CLOSE_PAREN, line2)::ts') acc = (acc @ [i], ts')
           | getParams ((Lexer.IDENTIFIER i, line)::(Lexer.COMMA, line2)::(Lexer.IDENTIFIER i2, line3)::ts') acc =
               getParams ((Lexer.IDENTIFIER i2, line3)::ts') (acc @ [i])
           | getParams (t::ts) acc =
-              raiseError("Syntax error parsing parameter list- expected identifier and comma or identifier and close parenthesis", getLine t)
+              raiseError("Syntax error parsing parameter list- expected identifier and comma or identifier and close parenthesis", getLine t, fileName)
 
         fun getExps ([], _) =
-              raiseError("Expected expression or end of function block, got EOF", line)
+              raiseError("Expected expression or end of function block, got EOF", line, fileName)
           | getExps (tokens as ((Lexer.BLOCK_END, _)::ts), acc) =
               (acc, tokens)
           | getExps (t::ts, acc) =
               let
-                val (exprOpt, expState) = parseExpression(t::ts, opMap, MIN_OP_PRECEDENCE, true)
-                val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error while parsing expression in function body", getLine t))
+                val (exprOpt, expState) = parseExpression(t::ts, opMap, MIN_OP_PRECEDENCE, fileName, true)
+                val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error while parsing expression in function body", getLine t, fileName))
               in
                 getExps(expState, acc @ [exp])
               end
@@ -246,39 +248,39 @@ structure Parser :> PARSER = struct
         val afterFuncState = expect(Lexer.BLOCK_END, expsState)
       in ((funcName, paramList, exps, isPure), afterFuncState)
       end
-    | parseFunction(t::ts, _, _) =
-        raiseError("Expected function name in declaration, got " ^ ((Lexer.tokenToString o getLabel) t), getLine t)
+    | parseFunction(t::ts, _, _, fileName) =
+        raiseError("Expected function name in declaration, got " ^ ((Lexer.tokenToString o getLabel) t), getLine t, fileName)
 
-  val parseExpression : (Lexer.token list * operatorMap * int * bool) -> (exp option * Lexer.token list) = parseExpression
+  val parseExpression : (Lexer.token list * operatorMap * int * string * bool) -> (exp option * Lexer.token list) = parseExpression
 
-  val parseAtom : (Lexer.token list * operatorMap * bool) -> (exp option * Lexer.token list) = parseAtom
+  val parseAtom : (Lexer.token list * operatorMap * string * bool) -> (exp option * Lexer.token list) = parseAtom
 
-  val parseFunction : (Lexer.token list * operatorMap * bool) -> (definition * Lexer.token list) = parseFunction
+  val parseFunction : (Lexer.token list * operatorMap * bool * string) -> (definition * Lexer.token list) = parseFunction
 
-  fun parse([], _) = []
-    | parse(t::ts, opMap) = (case getLabel t of
+  fun parse([], _, _) = []
+    | parse(t::ts, opMap, fileName) = (case getLabel t of
           Lexer.IMPURE => (case ts of
-             [] => raiseError("Got \"impure\" keyword without function definition", getLine t)
+             [] => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName)
            | ((Lexer.FUNCTION_START, line)::ts') =>
                let
-                 val (func, funcState) = parseFunction(ts', opMap, false)
+                 val (func, funcState) = parseFunction(ts', opMap, false, fileName)
                in
-                 (TOP_DEFINE(func, getLine t)) :: parse(funcState, opMap)
+                 (TOP_DEFINE(func, getLine t)) :: parse(funcState, opMap, fileName)
                end
-           | (t'::ts') => raiseError("Got \"impure\" keyword without function definition", getLine t))
+           | (t'::ts') => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName))
         | Lexer.FUNCTION_START =>
                let
-                 val (func, funcState) = parseFunction(ts, opMap, true)
+                 val (func, funcState) = parseFunction(ts, opMap, true, fileName)
                in
-                 (TOP_DEFINE(func, getLine t)) :: parse(funcState, opMap)
+                 (TOP_DEFINE(func, getLine t)) :: parse(funcState, opMap, fileName)
                end
         | Lexer.CONSTANT =>
             let
-              val (exprOpt, exprState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, true)
-              val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error getting constant expression", getLine t))
+              val (exprOpt, exprState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, fileName, true)
+              val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error getting constant expression", getLine t, fileName))
             in
-              (CONSTANT(exp, getLine t)) :: parse(exprState, opMap)
+              (CONSTANT(exp, getLine t)) :: parse(exprState, opMap, fileName)
             end
         | label =>
-            raiseError("Expected function definition or constant definition, got " ^ (Lexer.tokenToString label), getLine t))
+            raiseError("Expected function definition or constant definition, got " ^ (Lexer.tokenToString label), getLine t, fileName))
 end
