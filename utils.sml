@@ -33,7 +33,7 @@ structure Utils = struct
 
     fun errorWithFileLine(module, fileName, line) =
       ((moduleToString module) ^ " error reported:\n\t" ^ message ^ "\n" ^
-        "Occurred at " ^ fileName ^ ":" ^ (intToString line))
+        "\nOccurred at " ^ fileName ^ ":" ^ (intToString line))
 
   in (case module of
       INTERNAL => printAndFail ("Internal error reported:\n\t" ^ message)
