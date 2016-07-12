@@ -8,7 +8,7 @@ structure Lexer :> LEXER = struct
     | BLOCK_END
     | BLOCK_BEGIN
     | IMPURE
-    | LAMBDA
+    | LAMBDA_BAR
     | INTEGER of int
     | OPERATOR of string
     | OPEN_PAREN
@@ -32,7 +32,6 @@ structure Lexer :> LEXER = struct
 
   val keywordMappings = [("function", FUNCTION_START),
                          ("end", BLOCK_END),
-                         ("lambda", LAMBDA),
                          ("impure", IMPURE),
                          ("var", DECLARE_VAR),
                          ("module", MODULE_BEGIN),
@@ -72,6 +71,7 @@ structure Lexer :> LEXER = struct
     | tokenToString CLOSE_PAREN = ")"
     | tokenToString ANNOTATION = "@ (annotation)"
     | tokenToString COMMA = "{comma ','}"
+    | tokenToString LAMBDA_BAR = "|"
     | tokenToString (STRING_LITERAL s) = ("\"" ^ s ^ "\"")
     | tokenToString label =
         (case getLabelString label of
@@ -188,6 +188,10 @@ structure Lexer :> LEXER = struct
         in
           ((STRING_LITERAL result, r), getNewLexer(remainingChars, r))
         end
+
+      (* LAMBDA BAR LEXING *)
+      else if c = #"|" then
+        ((LAMBDA_BAR, r), getNewLexer(cs, r))
 
       (* COMMENT LEXING *)
       else if c = commentChar then
