@@ -12,6 +12,7 @@ signature PARSER = sig
                | LIT of value * int
                | VAR of identifier * int
                | CALL of identifier * exp list * int
+               | LAMBDA of identifier list * exp
 
   datatype topLevel = TOP_DEFINE of definition * int
                     | CONSTANT of exp * int

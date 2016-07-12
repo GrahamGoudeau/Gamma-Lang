@@ -12,6 +12,7 @@ structure Parser :> PARSER = struct
                | LIT of value * int
                | VAR of identifier * int
                | CALL of identifier * exp list * int
+               | LAMBDA of identifier list * exp
      withtype definition = identifier * identifier list * exp list * bool
 
   datatype topLevel = TOP_DEFINE of definition * int
@@ -89,9 +90,38 @@ structure Parser :> PARSER = struct
     | (VAR (i, _)) => ("{var " ^ i ^ "}")
     | (CALL (i, eList, _)) => ("{call " ^ i ^ " params: (" ^
         (String.concat (List.map (fn e => expToString e) eList)) ^ ")}")
+    | (LAMBDA (is, exp)) => ("{lambda " ^
+        ((String.concat o (List.map (fn i => (i ^ " ")))) is) ^ "-> " ^ (expToString exp) ^ "}")
 
+  fun expect(expectToken, [], fileName) = raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^ ", got EOF", ~1, fileName)
+    | expect(expectToken, t::ts, fileName) =
+        if expectToken = (getLabel t) then ts
+        else raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^
+          ", got " ^ ((Lexer.tokenToString o getLabel) t), getLine t, fileName)
 
   (* MAIN PARSING *)
+
+  fun gatherLambdaParams([], _, _, fileName) =
+        raiseError("Expected closing '|' in lambda definition, got EOF", ~1, fileName)
+    | gatherLambdaParams(t::ts, args, expectIdent, fileName) = (case getLabel t of
+        Lexer.COMMA =>
+          if expectIdent then
+            raiseError("Expected identifier in lambda argument list", getLine t, fileName)
+          else
+            gatherLambdaParams(ts, args, true, fileName)
+      | Lexer.LAMBDA_BAR =>
+          if expectIdent then
+            raiseError("Expected identifier in lambda argument list", getLine t, fileName)
+          else
+            (args, (t::ts))
+      | Lexer.IDENTIFIER i =>
+          if (expectIdent) then
+            gatherLambdaParams(ts, args @ [i], false, fileName)
+          else
+            raiseError("Expected comma in lambda argument list", getLine t, fileName)
+      | label =>
+          raiseError("Expected identifier or comma in lambda argument list, " ^
+              "got " ^ (Lexer.tokenToString label), getLine t, fileName))
 
   (* source: http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing *)
   fun parseExpression([], _, _, fileName, fail) =
@@ -103,6 +133,16 @@ structure Parser :> PARSER = struct
           val (func, funcState) = parseFunction(ts, opMap, true, fileName)
         in
           (SOME (DEFINE (func, line)), funcState)
+        end
+    | parseExpression((Lexer.LAMBDA_BAR, line)::ts, opMap, _, fileName, fail) =
+        let
+          val (idents, identsState) = gatherLambdaParams(ts, [], true, fileName)
+          val afterBar = expect(Lexer.LAMBDA_BAR, identsState, fileName)
+          val afterArrow = expect(Lexer.OPERATOR "->", afterBar, fileName)
+          val (expOpt, expState) = parseExpression(afterArrow, opMap, MIN_OP_PRECEDENCE, fileName, fail)
+          val exp = lazyGetOpt(expOpt, fn () => raiseError("Unexpected error getting expression optional value", line, fileName))
+        in
+          (SOME (LAMBDA (idents, exp)), expState)
         end
     | parseExpression(tokens as (t::ts), opMap, minPrecedence, fileName, fail) =
       let
@@ -214,12 +254,6 @@ structure Parser :> PARSER = struct
         raiseError("Expected function definition, got EOF", ~1, fileName)
     | parseFunction((Lexer.IDENTIFIER funcName, line)::ts, opMap, isPure, fileName) =
       let
-        fun expect(expectToken, []) = raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^ ", got EOF", ~1, fileName)
-          | expect(expectToken, t::ts) =
-              if expectToken = (getLabel t) then ts
-              else raiseError("Expected token " ^ (Lexer.tokenToString
-              expectToken) ^ ", got " ^ ((Lexer.tokenToString o getLabel) t), getLine t, fileName)
-
         fun getParams [] _ =
               raiseError("Expected parameter list, got EOF", ~1, fileName)
           | getParams ((Lexer.CLOSE_PAREN, line)::ts') acc = (acc, ts')
@@ -241,11 +275,11 @@ structure Parser :> PARSER = struct
                 getExps(expState, acc @ [exp])
               end
 
-        val openingParenState = expect(Lexer.OPEN_PAREN, ts)
+        val openingParenState = expect(Lexer.OPEN_PAREN, ts, fileName)
         val (paramList, paramListState) = getParams openingParenState []
-        val equalsSignState = expect(Lexer.BLOCK_BEGIN, paramListState)
+        val equalsSignState = expect(Lexer.BLOCK_BEGIN, paramListState, fileName)
         val (exps, expsState) = getExps(equalsSignState, [])
-        val afterFuncState = expect(Lexer.BLOCK_END, expsState)
+        val afterFuncState = expect(Lexer.BLOCK_END, expsState, fileName)
       in ((funcName, paramList, exps, isPure), afterFuncState)
       end
     | parseFunction(t::ts, _, _, fileName) =

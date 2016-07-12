@@ -8,7 +8,7 @@ signature LEXER = sig
     | BLOCK_END
     | BLOCK_BEGIN
     | IMPURE
-    | LAMBDA
+    | LAMBDA_BAR
     | INTEGER of int
     | OPERATOR of string
     | OPEN_PAREN
