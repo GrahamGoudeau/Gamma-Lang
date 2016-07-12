@@ -122,6 +122,21 @@ structure Lexer :> LEXER = struct
         andalso (not (member keywords potentialIdent))
   end
 
+  fun convertCommandChars _ [] = []
+    | convertCommandChars _ [c] = [c]
+    | convertCommandChars context (#"\\"::c'::cs) =
+        let
+          fun continue() = convertCommandChars context cs
+        in (case c' of
+            #"n" => #"\n"::(continue())
+          | #"t" => #"\t"::(continue())
+          | #"r" => #"\r"::(continue())
+          | #"\\" => #"\\"::(continue())
+          | #"\"" => #"\""::(continue())
+          | c => Utils.error(Utils.LEXER(context), "Unknown command character '\\" ^ (String.implode [c]) ^ "'"))
+        end
+    | convertCommandChars context (c::c'::cs) = c :: convertCommandChars context (c'::cs)
+
   fun isNextTokenKeyword chars =
   let
     val (_, potentialKeyword) =
@@ -143,10 +158,11 @@ structure Lexer :> LEXER = struct
           Utils.error(Utils.LEXER(fileName, r), "Got EOF while reading string literal on line " ^ (Int.toString r))
       | getString(c::cs, r) =
           let
-            fun accumulate(#"\""::cs, acc) = (cs, (String.implode o List.rev) acc)
+            val context = (fileName, r)
+            fun accumulate(#"\""::cs, acc) = (cs, (String.implode o (convertCommandChars context) o List.rev) acc)
               | accumulate(c::cs, acc) = accumulate(cs, c::acc)
               | accumulate([], acc) =
-                  Utils.error(Utils.LEXER(fileName, r), "Got EOF while reading string literal on line " ^ (Int.toString r))
+                  Utils.error(Utils.LEXER context, "Got EOF while reading string literal on line " ^ (Int.toString r))
           in
             accumulate(c::cs, [])
           end
