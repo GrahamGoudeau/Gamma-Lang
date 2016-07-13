@@ -5,13 +5,14 @@ signature PARSER = sig
                  | BOOL of bool
                  | STRING_LITERAL of string
                  | IDENTIFIER of identifier
+                 | OPERATOR of identifier
                  | UNDEFINED
 
   type definition
   datatype exp = DEFINE of definition * int(*DEFINE of identifier * identifier list * exp list * int*)
                | LIT of value * int
                | VAR of identifier * int
-               | CALL of identifier * exp list * int
+               | CALL of exp * exp list * int
                | LAMBDA of identifier list * exp
 
   datatype topLevel = TOP_DEFINE of definition * int

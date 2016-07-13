@@ -6,12 +6,13 @@ structure Parser :> PARSER = struct
                  | BOOL of bool
                  | STRING_LITERAL of string
                  | IDENTIFIER of identifier
+                 | OPERATOR of identifier
                  | UNDEFINED
 
   datatype exp = DEFINE of definition * int
                | LIT of value * int
                | VAR of identifier * int
-               | CALL of identifier * exp list * int
+               | CALL of exp * exp list * int
                | LAMBDA of identifier list * exp
      withtype definition = identifier * identifier list * exp list * bool
 
@@ -81,6 +82,7 @@ structure Parser :> PARSER = struct
     | valueToString (BOOL b) = ("<bool " ^ (if b then "t" else "f") ^ ">")
     | valueToString (STRING_LITERAL s) = ("<string \"" ^ s ^ "\">")
     | valueToString (IDENTIFIER i) = ("<ident " ^ i ^ ">")
+    | valueToString (OPERATOR i) = ("<operator " ^ i ^ ">")
     | valueToString UNDEFINED = ("<undefined>")
 
   val rec expToString = fn
@@ -88,7 +90,7 @@ structure Parser :> PARSER = struct
     | (DEFINE ((i, iList, eList, _), _)) =>
         ("{define function " ^ i ^ "}")
     | (VAR (i, _)) => ("{var " ^ i ^ "}")
-    | (CALL (i, eList, _)) => ("{call " ^ i ^ " params: (" ^
+    | (CALL (i, eList, _)) => ("{call " ^ (expToString i) ^ " params: (" ^
         (String.concat (List.map (fn e => expToString e) eList)) ^ ")}")
     | (LAMBDA (is, exp)) => ("{lambda " ^
         ((String.concat o (List.map (fn i => (i ^ " ")))) is) ^ "-> " ^ (expToString exp) ^ "}")
@@ -101,7 +103,40 @@ structure Parser :> PARSER = struct
 
   (* MAIN PARSING *)
 
-  fun gatherLambdaParams([], _, _, fileName) =
+  fun gatherArgs([], _, _, _, _, fileName) =
+        raiseError("Expected closing parenthesis in function call, got EOF", ~1, fileName)
+    | gatherArgs(t::ts, args, expectExpression, firstParam, opMap, fileName) = (case getLabel t of
+        Lexer.COMMA =>
+          if expectExpression then
+            raiseError("Expected expression in function argument list", getLine t, fileName)
+          else
+            gatherArgs(ts, args, true, false, opMap, fileName)
+      | Lexer.CLOSE_PAREN =>
+          if expectExpression andalso (not firstParam) then
+            raiseError("Expected expression in function argument list", getLine t, fileName)
+          else
+            (args, ts)
+      | _ =>
+          let
+            val (exprOpt, exprState) = parseExpression((t::ts), opMap, MIN_OP_PRECEDENCE, fileName, true)
+            val exp = lazyGetOpt(exprOpt, fn () => raiseError("Error while parsing function argument", getLine t, fileName))
+          in
+            gatherArgs(exprState, args @ [exp], false, false, opMap, fileName)
+          end)
+
+  and getParams [] _ fileName =
+        raiseError("Expected parameter list, got EOF", ~1, fileName)
+    | getParams ((Lexer.CLOSE_PAREN, line)::ts') acc fileName = (acc, ts')
+    | getParams ((Lexer.IDENTIFIER i, line)::(Lexer.CLOSE_PAREN, line2)::ts') acc fileName =
+        (acc @ [i], ts')
+    | getParams ((Lexer.IDENTIFIER i, line)::(Lexer.COMMA, line2)::(Lexer.IDENTIFIER i2, line3)::ts')
+                acc
+                fileName =
+        getParams ((Lexer.IDENTIFIER i2, line3)::ts') (acc @ [i]) fileName
+    | getParams (t::ts) acc fileName =
+        raiseError("Syntax error parsing parameter list- expected identifier and comma or identifier and close parenthesis", getLine t, fileName)
+
+  and gatherLambdaParams([], _, _, fileName) =
         raiseError("Expected closing '|' in lambda definition, got EOF", ~1, fileName)
     | gatherLambdaParams(t::ts, args, expectIdent, fileName) = (case getLabel t of
         Lexer.COMMA =>
@@ -124,7 +159,7 @@ structure Parser :> PARSER = struct
               "got " ^ (Lexer.tokenToString label), getLine t, fileName))
 
   (* source: http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing *)
-  fun parseExpression([], _, _, fileName, fail) =
+  and parseExpression([], _, _, fileName, fail) =
         if fail then
           raiseError("Expected expression, got EOF", ~1, fileName)
         else (NONE, [])
@@ -167,7 +202,7 @@ structure Parser :> PARSER = struct
                 in
                   case rhsOpt of
                        NONE => (SOME currentLeftHandSide, tokens)
-                     | SOME rhs => gatherBranches(CALL (oper, [currentLeftHandSide, rhs], line), rhsState)
+                     | SOME rhs => gatherBranches(CALL (LIT (OPERATOR oper, line), [currentLeftHandSide, rhs], line), rhsState)
                 end
 
           | (currentLeftHandSide, t'::ts') =>
@@ -195,43 +230,29 @@ structure Parser :> PARSER = struct
                | SOME e =>
                    (case expState of
                         [] => raiseError("Unmatched \"(\"", getLine t, fileName)
-                      | ((Lexer.CLOSE_PAREN, l)::ts) => (SOME e, ts)
+                      | ((Lexer.CLOSE_PAREN, l)::ts) =>
+                          (case ts of
+                               [] => (SOME e, ts)
+                             | ((Lexer.OPEN_PAREN, l')::ts') =>
+                                 let
+                                   val (exps, expsState) = gatherArgs(ts', [], true, true, opMap, fileName)
+                                 in
+                                   (SOME(CALL(e, exps, getLine t)), expsState)
+                                 end
+                             | _ => (SOME e, ts))
                       | ((t, l)::ts) =>
                           raiseError("Expected \")\", got " ^
-                          (Lexer.tokenToString t) ^ " in expression " ^ (expToString e), l, fileName))
+                            (Lexer.tokenToString t) ^ " in expression " ^ (expToString e), l, fileName))
           end
       | Lexer.IDENTIFIER i =>
-          let
-            fun gatherArgs([], _, _, _) =
-                  raiseError("Expected closing parenthesis in function call", getLine t, fileName)
-              | gatherArgs(t::ts, args, expectExpression, firstParam) = (case getLabel t of
-                  Lexer.COMMA =>
-                    if expectExpression then
-                      raiseError("Expected expression in function argument list", getLine t, fileName)
-                    else
-                      gatherArgs(ts, args, true, false)
-                | Lexer.CLOSE_PAREN =>
-                    if expectExpression andalso (not firstParam) then
-                      raiseError("Expected expression in function argument list", getLine t, fileName)
-                    else
-                      (args, ts)
-                | _ =>
-                    let
-                      val (exprOpt, exprState) = parseExpression((t::ts), opMap, MIN_OP_PRECEDENCE, fileName, true)
-                      val exp = lazyGetOpt(exprOpt, fn () => raiseError("Error while parsing function argument", getLine t, fileName))
-                    in
-                      gatherArgs(exprState, args @ [exp], false, false)
-                    end)
-          in
-            (case ts of
-                  ((Lexer.OPEN_PAREN, _)::ts') =>
-                    let
-                      val (args, argsState) = gatherArgs(ts', [], true, true)
-                    in
-                      (SOME(CALL(i, args, getLine t)), argsState)
-                    end
-                | _ => (SOME(LIT(IDENTIFIER i, getLine t)), ts))
-          end
+          (case ts of
+                ((Lexer.OPEN_PAREN, _)::ts') =>
+                  let
+                    val (args, argsState) = gatherArgs(ts', [], true, true, opMap, fileName)
+                  in
+                    (SOME(CALL(LIT (IDENTIFIER i, getLine t), args, getLine t)), argsState)
+                  end
+              | _ => (SOME(LIT(IDENTIFIER i, getLine t)), ts))
 
       | Lexer.OPERATOR oper =>
           (case getOpArity oper opMap (getLine t) fileName of
@@ -242,7 +263,7 @@ structure Parser :> PARSER = struct
                    val (nextAtomOpt, nextAtomState) = parseAtom(ts, opMap, fileName, fail)
                    val nextAtom = lazyGetOpt(nextAtomOpt, fn () =>
                    raiseError("Expected atom while parsing unary operator", getLine t, fileName))
-                 in (SOME (CALL(oper, [nextAtom], getLine t)), nextAtomState)
+                 in (SOME (CALL(LIT (OPERATOR oper, getLine t), [nextAtom], getLine t)), nextAtomState)
                  end)
       | _ =>
           if fail then
@@ -254,15 +275,6 @@ structure Parser :> PARSER = struct
         raiseError("Expected function definition, got EOF", ~1, fileName)
     | parseFunction((Lexer.IDENTIFIER funcName, line)::ts, opMap, isPure, fileName) =
       let
-        fun getParams [] _ =
-              raiseError("Expected parameter list, got EOF", ~1, fileName)
-          | getParams ((Lexer.CLOSE_PAREN, line)::ts') acc = (acc, ts')
-          | getParams ((Lexer.IDENTIFIER i, line)::(Lexer.CLOSE_PAREN, line2)::ts') acc = (acc @ [i], ts')
-          | getParams ((Lexer.IDENTIFIER i, line)::(Lexer.COMMA, line2)::(Lexer.IDENTIFIER i2, line3)::ts') acc =
-              getParams ((Lexer.IDENTIFIER i2, line3)::ts') (acc @ [i])
-          | getParams (t::ts) acc =
-              raiseError("Syntax error parsing parameter list- expected identifier and comma or identifier and close parenthesis", getLine t, fileName)
-
         fun getExps ([], _) =
               raiseError("Expected expression or end of function block, got EOF", line, fileName)
           | getExps (tokens as ((Lexer.BLOCK_END, _)::ts), acc) =
@@ -276,7 +288,7 @@ structure Parser :> PARSER = struct
               end
 
         val openingParenState = expect(Lexer.OPEN_PAREN, ts, fileName)
-        val (paramList, paramListState) = getParams openingParenState []
+        val (paramList, paramListState) = getParams openingParenState [] fileName
         val equalsSignState = expect(Lexer.BLOCK_BEGIN, paramListState, fileName)
         val (exps, expsState) = getExps(equalsSignState, [])
         val afterFuncState = expect(Lexer.BLOCK_END, expsState, fileName)
