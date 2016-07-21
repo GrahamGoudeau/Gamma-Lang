@@ -24,7 +24,8 @@ signature PARSER = sig
 
   type module
 
-  val parse : (Lexer.token list * operatorMap * string) -> topLevel list
+  (* returns module name and AST forest *)
+  val parse : (Lexer.token list * operatorMap * string) -> (string * (topLevel list))
 
   val newOperatorMap : operatorMap
 

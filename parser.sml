@@ -303,30 +303,45 @@ structure Parser :> PARSER = struct
 
   val parseFunction : (Lexer.token list * operatorMap * bool * string) -> (definition * Lexer.token list) = parseFunction
 
-  fun parse([], _, _) = []
-    | parse(t::ts, opMap, fileName) = (case getLabel t of
-          Lexer.IMPURE => (case ts of
-             [] => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName)
-           | ((Lexer.FUNCTION_START, line)::ts') =>
-               let
-                 val (func, funcState) = parseFunction(ts', opMap, false, fileName)
-               in
-                 (TOP_DEFINE(func, getLine t)) :: parse(funcState, opMap, fileName)
-               end
-           | (t'::ts') => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName))
-        | Lexer.FUNCTION_START =>
-               let
-                 val (func, funcState) = parseFunction(ts, opMap, true, fileName)
-               in
-                 (TOP_DEFINE(func, getLine t)) :: parse(funcState, opMap, fileName)
-               end
-        | Lexer.CONSTANT =>
-            let
-              val (exprOpt, exprState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, fileName, true)
-              val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error getting constant expression", getLine t, fileName))
-            in
-              (CONSTANT(exp, getLine t)) :: parse(exprState, opMap, fileName)
-            end
-        | label =>
-            raiseError("Expected function definition or constant definition, got " ^ (Lexer.tokenToString label), getLine t, fileName))
+  fun parse([], _, fileName) =
+        raiseError("Empty file", ~1, fileName)
+    | parse((Lexer.MODULE_BEGIN, line1)::
+            (Lexer.IDENTIFIER moduleName, line2)::ts,
+            opMap,
+            fileName) =
+      let
+        fun innerParse [] =
+              raiseError("Module ended without \"" ^ (Lexer.tokenToString Lexer.BLOCK_END) ^ "\" keyword", ~1, fileName)
+          | innerParse [(Lexer.BLOCK_END, endLine)] = []
+          | innerParse (t::ts) = (case getLabel t of
+              Lexer.IMPURE => (case ts of
+                 [] => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName)
+               | ((Lexer.FUNCTION_START, line)::ts') =>
+                   let
+                     val (func, funcState) = parseFunction(ts', opMap, false, fileName)
+                   in
+                     (TOP_DEFINE(func, getLine t)) :: innerParse(funcState)
+                   end
+               | (t'::ts') => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName))
+            | Lexer.FUNCTION_START =>
+                   let
+                     val (func, funcState) = parseFunction(ts, opMap, true, fileName)
+                   in
+                     (TOP_DEFINE(func, getLine t)) :: innerParse(funcState)
+                   end
+            | Lexer.CONSTANT =>
+                let
+                  val (exprOpt, exprState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, fileName, true)
+                  val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error getting constant expression", getLine t, fileName))
+                in
+                  (CONSTANT(exp, getLine t)) :: innerParse(exprState)
+                end
+            | label =>
+                raiseError("Expected function definition or constant definition, got " ^ (Lexer.tokenToString label), getLine t, fileName))
+      in (moduleName, innerParse ts)
+      end
+    | parse(t::ts, _, fileName) =
+        raiseError("Syntax error at start of module (expected " ^
+          (Lexer.tokenToString Lexer.MODULE_BEGIN) ^ " {module name})",
+          getLine t, fileName)
 end
