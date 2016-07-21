@@ -220,7 +220,7 @@ structure Lexer :> LEXER = struct
           (case result of
                 NONE => errorReport("Unexpected error while lexing integer", lexer)
               | SOME i =>
-                  (((INTEGER i), r), getNewLexer(cs, r)))
+                  (((INTEGER i), r), getNewLexer(remainingChars, r)))
         end
 
       (* IDENTIFIER LEXING *)
