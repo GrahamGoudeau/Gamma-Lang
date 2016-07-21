@@ -13,6 +13,8 @@ structure Parser :> PARSER = struct
                | LIT of value * int
                | VAR of identifier * int
                | CALL of exp * exp list * int
+               | MODULE_CALL of string * string * exp list * int
+               | MODULE_VAR of string * string * int
                | LAMBDA of identifier list * exp
      withtype definition = identifier * identifier list * exp list * bool
 
@@ -92,6 +94,11 @@ structure Parser :> PARSER = struct
     | (VAR (i, _)) => ("{var " ^ i ^ "}")
     | (CALL (i, eList, _)) => ("{call " ^ (expToString i) ^ " params: (" ^
         (String.concat (List.map (fn e => expToString e) eList)) ^ ")}")
+    | (MODULE_CALL (moduleName, funcName, eList, _)) =>
+        ("{call " ^ moduleName ^ "." ^ funcName ^ " params: (" ^
+        (String.concat (List.map (fn e => expToString e) eList)) ^ ")}")
+    | (MODULE_VAR (moduleName, i, _)) =>
+        ("{var " ^ moduleName ^ "." ^ i ^ "}")
     | (LAMBDA (is, exp)) => ("{lambda " ^
         ((String.concat o (List.map (fn i => (i ^ " ")))) is) ^ "-> " ^ (expToString exp) ^ "}")
 
@@ -252,6 +259,14 @@ structure Parser :> PARSER = struct
                   in
                     (SOME(CALL(LIT (IDENTIFIER i, getLine t), args, getLine t)), argsState)
                   end
+              | ((Lexer.DOT, _)::(Lexer.IDENTIFIER i2, _)::(Lexer.OPEN_PAREN, line)::ts') =>
+                  let
+                    val (args, argsState) = gatherArgs(ts', [], true, true, opMap, fileName)
+                  in
+                    (SOME(MODULE_CALL(i, i2, args, line)), argsState)
+                  end
+              | ((Lexer.DOT, _)::(Lexer.IDENTIFIER i2, line)::ts') =>
+                  (SOME(MODULE_VAR(i, i2, line)), ts')
               | _ => (SOME(LIT(IDENTIFIER i, getLine t)), ts))
 
       | Lexer.OPERATOR oper =>
@@ -340,6 +355,7 @@ structure Parser :> PARSER = struct
                 raiseError("Expected function definition or constant definition, got " ^ (Lexer.tokenToString label), getLine t, fileName))
       in (moduleName, innerParse ts)
       end
+
     | parse(t::ts, _, fileName) =
         raiseError("Syntax error at start of module (expected " ^
           (Lexer.tokenToString Lexer.MODULE_BEGIN) ^ " {module name})",

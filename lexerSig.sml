@@ -16,6 +16,7 @@ signature LEXER = sig
     | ANNOTATION
     | COMMA
     | MODULE_BEGIN
+    | DOT
     | CONSTANT
     | STRING_LITERAL of string
 

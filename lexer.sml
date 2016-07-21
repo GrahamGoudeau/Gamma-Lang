@@ -16,6 +16,7 @@ structure Lexer :> LEXER = struct
     | ANNOTATION
     | COMMA
     | MODULE_BEGIN
+    | DOT
     | CONSTANT
     | STRING_LITERAL of string
 
@@ -72,6 +73,7 @@ structure Lexer :> LEXER = struct
     | tokenToString ANNOTATION = "@ (annotation)"
     | tokenToString COMMA = "{comma ','}"
     | tokenToString LAMBDA_BAR = "|"
+    | tokenToString DOT = "."
     | tokenToString (STRING_LITERAL s) = ("\"" ^ s ^ "\"")
     | tokenToString label =
         (case getLabelString label of
@@ -89,7 +91,7 @@ structure Lexer :> LEXER = struct
   fun member list elem = List.exists (fn x => x = elem) list
 
   val opChars = [#"+", #"-", #"/", #"*", #"$", #"<", #">",
-                 #"=", #".", #":", #"~", #"^"]
+                 #"=", #":", #"~", #"^"]
 
   fun peekChar [] = NONE
     | peekChar (c::cs) = SOME c
@@ -180,6 +182,10 @@ structure Lexer :> LEXER = struct
       (* COMMA LEXING *)
       else if c = #"," then
         ((COMMA, r), getNewLexer(cs, r))
+
+      (* MODULE REFERENCE LEXING *)
+      else if c = #"." then
+        ((DOT, r), getNewLexer(cs, r))
 
       (* STRING LEXING *)
       else if c = #"\"" then
