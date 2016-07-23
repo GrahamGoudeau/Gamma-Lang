@@ -43,4 +43,5 @@ structure Utils = struct
         ((printAndFail o errorWithFileLine) (module, fileName, line)))
   end
 
+  fun member list elem = List.exists (fn x => x = elem) list
 end

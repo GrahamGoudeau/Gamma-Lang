@@ -18,6 +18,8 @@ signature LEXER = sig
     | MODULE_BEGIN
     | DOT
     | CONSTANT
+    | INFIX
+    | INFIXR
     | STRING_LITERAL of string
 
   type line = int

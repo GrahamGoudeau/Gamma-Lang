@@ -52,6 +52,12 @@ structure Parser :> PARSER = struct
   val newOperatorMap : operatorMap = []
   val addNewOperator = op ::
   val addNewOperators = op @
+  fun isOperatorDeclared (_, []) = false
+    | isOperatorDeclared (oper, ops) =
+      let
+        val opStrings = List.map fst ops
+      in Utils.member opStrings oper
+      end
 
   fun getOpAssoc oper opMap line fileName =
   let
@@ -285,6 +291,21 @@ structure Parser :> PARSER = struct
             raiseError("Expected expression identifier, literal, or operator; got " ^ (Lexer.tokenToString (getLabel t)), getLine t, fileName)
           else (NONE, t::ts))
 
+  (* expects the tokens to start immediately after the INFIX or INFIXR keyword *)
+  and parseOperatorDefinition((Lexer.INTEGER n, line)::(Lexer.OPERATOR oper, _)::ts, oldOpMap, associativity, fileName) =
+        if isOperatorDeclared(oper, oldOpMap) then
+          raiseError("Redefinition of operator " ^ oper, line, fileName)
+        else
+        let
+          val newOpMap = addNewOperator ((oper, (associativity, BINARY, n)), oldOpMap)
+        in
+          (newOpMap, ts)
+        end
+    | parseOperatorDefinition((label, line)::ts, _, _, fileName) =
+        raiseError("Syntax error during operator declaration: got '" ^ (Lexer.tokenToString label) ^ "'", line, fileName)
+    | parseOperatorDefinition([], _, _, fileName) =
+        raiseError("EOF while parsing operator definition", ~1, fileName)
+
   (* expects the tokens to start immediately after the FUNCTION_START token *)
   and parseFunction([], _, _, fileName) =
         raiseError("Expected function definition, got EOF", ~1, fileName)
@@ -325,35 +346,47 @@ structure Parser :> PARSER = struct
             opMap,
             fileName) =
       let
-        fun innerParse [] =
+        fun innerParse ([], _) =
               raiseError("Module ended without \"" ^ (Lexer.tokenToString Lexer.BLOCK_END) ^ "\" keyword", ~1, fileName)
-          | innerParse [(Lexer.BLOCK_END, endLine)] = []
-          | innerParse (t::ts) = (case getLabel t of
+          | innerParse ([(Lexer.BLOCK_END, endLine)], _) = []
+          | innerParse ((t::ts), opMap) = (case getLabel t of
               Lexer.IMPURE => (case ts of
                  [] => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName)
                | ((Lexer.FUNCTION_START, line)::ts') =>
                    let
                      val (func, funcState) = parseFunction(ts', opMap, false, fileName)
                    in
-                     (TOP_DEFINE(func, getLine t)) :: innerParse(funcState)
+                     (TOP_DEFINE(func, getLine t)) :: innerParse(funcState, opMap)
                    end
                | (t'::ts') => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName))
             | Lexer.FUNCTION_START =>
                    let
                      val (func, funcState) = parseFunction(ts, opMap, true, fileName)
                    in
-                     (TOP_DEFINE(func, getLine t)) :: innerParse(funcState)
+                     (TOP_DEFINE(func, getLine t)) :: innerParse(funcState, opMap)
+                   end
+            | Lexer.INFIX =>
+                   let
+                     val (newOpMap, newState) = parseOperatorDefinition(ts, opMap, LEFT, fileName)
+                   in
+                     innerParse(newState, newOpMap)
+                   end
+            | Lexer.INFIXR =>
+                   let
+                     val (newOpMap, newState) = parseOperatorDefinition(ts, opMap, RIGHT, fileName)
+                   in
+                     innerParse(newState, newOpMap)
                    end
             | Lexer.CONSTANT =>
                 let
                   val (exprOpt, exprState) = parseExpression(ts, opMap, MIN_OP_PRECEDENCE, fileName, true)
                   val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error getting constant expression", getLine t, fileName))
                 in
-                  (CONSTANT(exp, getLine t)) :: innerParse(exprState)
+                  (CONSTANT(exp, getLine t)) :: innerParse(exprState, opMap)
                 end
             | label =>
                 raiseError("Expected function definition or constant definition, got " ^ (Lexer.tokenToString label), getLine t, fileName))
-      in (moduleName, innerParse ts)
+      in (moduleName, innerParse (ts, opMap))
       end
 
     | parse(t::ts, _, fileName) =
