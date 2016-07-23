@@ -18,6 +18,8 @@ structure Lexer :> LEXER = struct
     | MODULE_BEGIN
     | DOT
     | CONSTANT
+    | INFIX
+    | INFIXR
     | STRING_LITERAL of string
 
   type line = int
@@ -37,6 +39,8 @@ structure Lexer :> LEXER = struct
                          ("var", DECLARE_VAR),
                          ("module", MODULE_BEGIN),
                          ("constant", CONSTANT),
+                         ("infix", INFIX),
+                         ("infixr", INFIXR),
                          ("do", BLOCK_BEGIN)
                         ]
 
@@ -87,9 +91,6 @@ structure Lexer :> LEXER = struct
 
   fun newLexer(cs, builtInOperators, fileName) = buildNewLexer(cs, 1, builtInOperators, fileName)
 
-
-  fun member list elem = List.exists (fn x => x = elem) list
-
   val opChars = [#"+", #"-", #"/", #"*", #"$", #"<", #">",
                  #"=", #":", #"~", #"^"]
 
@@ -121,7 +122,7 @@ structure Lexer :> LEXER = struct
     val (_, potentialIdent) = accumulateChars isCharInRestOfIdentifier chars charListToString
     val isNotEmpty = potentialIdent <> ""
   in isNotEmpty andalso (isCharLeadIdentifier (String.sub(potentialIdent, 0)))
-        andalso (not (member keywords potentialIdent))
+        andalso (not (Utils.member keywords potentialIdent))
   end
 
   fun convertCommandChars _ [] = []
@@ -144,7 +145,7 @@ structure Lexer :> LEXER = struct
     val (_, potentialKeyword) =
       accumulateChars isCharLeadIdentifier chars charListToString
     val isNotEmpty = potentialKeyword <> ""
-  in isNotEmpty andalso (member keywords potentialKeyword)
+  in isNotEmpty andalso (Utils.member keywords potentialKeyword)
   end
 
   fun getToken lexer =
@@ -209,10 +210,10 @@ structure Lexer :> LEXER = struct
         end
 
       (* OPERATOR LEXING *)
-      else if member opChars c then
+      else if Utils.member opChars c then
         let
           val (remainingChars, result) =
-            accumulateChars (member opChars) (c::cs) charListToString
+            accumulateChars (Utils.member opChars) (c::cs) charListToString
         in
           ((OPERATOR result, r), getNewLexer(remainingChars, r))
         end
@@ -235,7 +236,7 @@ structure Lexer :> LEXER = struct
           val (remainingChars, result) = accumulateChars isCharInRestOfIdentifier (c::cs) charListToString
           val restOfLexer = getNewLexer(remainingChars, r)
         in
-          if (member builtInOperators result) then
+          if (Utils.member builtInOperators result) then
             ((OPERATOR result, r), restOfLexer)
            else
              ((IDENTIFIER result, r), restOfLexer)
