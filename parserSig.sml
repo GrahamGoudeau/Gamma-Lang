@@ -13,6 +13,8 @@ signature PARSER = sig
                | LIT of value * int
                | VAR of identifier * int
                | CALL of exp * exp list * int
+               | MODULE_CALL of string * string * exp list * int
+               | MODULE_VAR of string * string * int
                | LAMBDA of identifier list * exp
 
   datatype topLevel = TOP_DEFINE of definition * int
@@ -24,7 +26,8 @@ signature PARSER = sig
 
   type module
 
-  val parse : (Lexer.token list * operatorMap * string) -> topLevel list
+  (* returns module name and AST forest *)
+  val parse : (Lexer.token list * operatorMap * string) -> (string * (topLevel list))
 
   val newOperatorMap : operatorMap
 
