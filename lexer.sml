@@ -20,6 +20,7 @@ structure Lexer :> LEXER = struct
     | CONSTANT
     | INFIX
     | INFIXR
+    | OPERATOR_DEFINE
     | STRING_LITERAL of string
 
   type line = int
@@ -41,6 +42,7 @@ structure Lexer :> LEXER = struct
                          ("constant", CONSTANT),
                          ("infix", INFIX),
                          ("infixr", INFIXR),
+                         ("operator", OPERATOR_DEFINE),
                          ("do", BLOCK_BEGIN)
                         ]
 

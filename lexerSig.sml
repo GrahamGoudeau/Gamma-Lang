@@ -20,6 +20,7 @@ signature LEXER = sig
     | CONSTANT
     | INFIX
     | INFIXR
+    | OPERATOR_DEFINE
     | STRING_LITERAL of string
 
   type line = int
