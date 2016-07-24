@@ -134,7 +134,13 @@ structure Parser :> PARSER = struct
             val (exprOpt, exprState) = parseExpression((t::ts), opMap, MIN_OP_PRECEDENCE, fileName, true)
             val exp = lazyGetOpt(exprOpt, fn () => raiseError("Error while parsing function argument", getLine t, fileName))
           in
-            gatherArgs(exprState, args @ [exp], false, false, opMap, fileName)
+            (case exprState of
+                  [] => raiseError("Got EOF while gathering function arguments", ~1, fileName)
+                | ((Lexer.COMMA, _)::ts) => gatherArgs(exprState, args @ [exp], false, false, opMap, fileName)
+                | ((Lexer.CLOSE_PAREN, _)::ts) => gatherArgs(exprState, args @ [exp], false, false, opMap, fileName)
+                | (t::ts) => raiseError("Missing comma while parsing function arguments",
+                                        getLine t,
+                                        fileName))
           end)
 
   and getParams [] _ fileName =
