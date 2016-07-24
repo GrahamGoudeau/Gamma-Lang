@@ -52,8 +52,7 @@ structure Parser :> PARSER = struct
   val newOperatorMap : operatorMap = []
   val addNewOperator = op ::
   val addNewOperators = op @
-  fun isOperatorDeclared (_, []) = false
-    | isOperatorDeclared (oper, ops) =
+  fun isOperatorDeclared (oper, ops) =
       let
         val opStrings = List.map fst ops
       in Utils.member opStrings oper
@@ -301,6 +300,8 @@ structure Parser :> PARSER = struct
   and parseOperatorDefinition((Lexer.INTEGER n, line)::(Lexer.OPERATOR oper, _)::ts, oldOpMap, associativity, fileName) =
         if isOperatorDeclared(oper, oldOpMap) then
           raiseError("Redefinition of operator " ^ oper, line, fileName)
+        else if n < 1 then
+          raiseError("Got non-positive associativity in declaration of operator " ^ oper, line, fileName)
         else
         let
           val newOpMap = addNewOperator ((oper, (associativity, BINARY, n)), oldOpMap)
