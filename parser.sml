@@ -29,6 +29,8 @@ structure Parser :> PARSER = struct
   val getLabel = fst
   val getLine = snd
 
+  val printToken = (Lexer.tokenToString o getLabel)
+
   fun peekTokenLabel [] = NONE
     | peekTokenLabel (t::ts) = SOME (getLabel t)
 
@@ -296,6 +298,32 @@ structure Parser :> PARSER = struct
             raiseError("Expected expression identifier, literal, or operator; got " ^ (Lexer.tokenToString (getLabel t)), getLine t, fileName)
           else (NONE, t::ts))
 
+  (* expects the tokens to start immediately after OPERATOR *)
+  and parseOperatorDefinition((Lexer.IDENTIFIER a, _)::
+                                (Lexer.OPERATOR oper, line)::
+                                (Lexer.IDENTIFIER b, _)::
+                                (Lexer.BLOCK_BEGIN, _)::ts,
+                              opMap,
+                              fileName) =
+        if isOperatorDeclared(oper, opMap) then
+          let
+            val (exps, expsState) = getExps(ts, [], opMap, fileName)
+            val afterBlock = expect(Lexer.BLOCK_END, expsState, fileName)
+          in
+            (* TODO: purity? *)
+            ((oper, [a, b], exps, true), afterBlock)
+          end
+        else
+          raiseError("Got operator definition for undeclared operator " ^ oper, line, fileName)
+
+    | parseOperatorDefinition(t::ts, _, fileName) =
+        raiseError("Syntax error in operator definition; got " ^
+            (printToken t), getLine t, fileName)
+    | parseOperatorDefinition([], _, fileName) =
+        raiseError("Got EOF while parsing operator definition",
+                   ~1,
+                   fileName)
+
   (* expects the tokens to start immediately after the INFIX or INFIXR keyword *)
   and parseOperatorDeclaration((Lexer.INTEGER n, line)::(Lexer.OPERATOR oper, _)::ts, oldOpMap, associativity, fileName) =
         if isOperatorDeclared(oper, oldOpMap) then
@@ -313,27 +341,27 @@ structure Parser :> PARSER = struct
     | parseOperatorDeclaration([], _, _, fileName) =
         raiseError("EOF while parsing operator definition", ~1, fileName)
 
+  and getExps ([], _, _, fileName) =
+        raiseError("Expected expression or end of block, got EOF", ~1, fileName)
+    | getExps(tokens as ((Lexer.BLOCK_END, _)::ts), acc, _, _) =
+        (acc, tokens)
+    | getExps(t::ts, acc, opMap, fileName) =
+        let
+          val (exprOpt, expState) = parseExpression(t::ts, opMap, MIN_OP_PRECEDENCE, fileName, true)
+          val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error while parsing expression in function body", getLine t, fileName))
+        in
+          getExps(expState, acc @ [exp], opMap, fileName)
+        end
+
   (* expects the tokens to start immediately after the FUNCTION_START token *)
   and parseFunction([], _, _, fileName) =
         raiseError("Expected function definition, got EOF", ~1, fileName)
     | parseFunction((Lexer.IDENTIFIER funcName, line)::ts, opMap, isPure, fileName) =
       let
-        fun getExps ([], _) =
-              raiseError("Expected expression or end of function block, got EOF", line, fileName)
-          | getExps (tokens as ((Lexer.BLOCK_END, _)::ts), acc) =
-              (acc, tokens)
-          | getExps (t::ts, acc) =
-              let
-                val (exprOpt, expState) = parseExpression(t::ts, opMap, MIN_OP_PRECEDENCE, fileName, true)
-                val exp = lazyGetOpt(exprOpt, fn () => raiseError("Unexpected error while parsing expression in function body", getLine t, fileName))
-              in
-                getExps(expState, acc @ [exp])
-              end
-
         val openingParenState = expect(Lexer.OPEN_PAREN, ts, fileName)
         val (paramList, paramListState) = getParams openingParenState [] fileName
         val equalsSignState = expect(Lexer.BLOCK_BEGIN, paramListState, fileName)
-        val (exps, expsState) = getExps(equalsSignState, [])
+        val (exps, expsState) = getExps(equalsSignState, [], opMap, fileName)
         val afterFuncState = expect(Lexer.BLOCK_END, expsState, fileName)
       in ((funcName, paramList, exps, isPure), afterFuncState)
       end
@@ -383,6 +411,12 @@ structure Parser :> PARSER = struct
                      val (newOpMap, newState) = parseOperatorDeclaration(ts, opMap, RIGHT, fileName)
                    in
                      innerParse(newState, newOpMap)
+                   end
+            | Lexer.OPERATOR_DEFINE =>
+                   let
+                     val (operDef, operState) = parseOperatorDefinition(ts, opMap, fileName)
+                   in
+                     (TOP_DEFINE(operDef, getLine t)) :: innerParse(operState, opMap)
                    end
             | Lexer.CONSTANT =>
                 let
