@@ -34,13 +34,14 @@ structure Utils = struct
     fun errorWithFileLine(module, fileName, line) =
       ((moduleToString module) ^ " error reported:\n\t" ^ message ^ "\n" ^
         "\nOccurred at " ^ fileName ^ ":" ^ (intToString line))
+    val doExit = (printAndFail o errorWithFileLine)
 
   in (case module of
       INTERNAL => printAndFail ("Internal error reported:\n\t" ^ message)
     | PARSER(fileName, line) =>
-        ((printAndFail o errorWithFileLine) (module, fileName, line))
+        (doExit (module, fileName, line))
     | LEXER(fileName, line) =>
-        ((printAndFail o errorWithFileLine) (module, fileName, line)))
+        (doExit (module, fileName, line)))
   end
 
   fun member list elem = List.exists (fn x => x = elem) list
