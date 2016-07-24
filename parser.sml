@@ -297,7 +297,7 @@ structure Parser :> PARSER = struct
           else (NONE, t::ts))
 
   (* expects the tokens to start immediately after the INFIX or INFIXR keyword *)
-  and parseOperatorDefinition((Lexer.INTEGER n, line)::(Lexer.OPERATOR oper, _)::ts, oldOpMap, associativity, fileName) =
+  and parseOperatorDeclaration((Lexer.INTEGER n, line)::(Lexer.OPERATOR oper, _)::ts, oldOpMap, associativity, fileName) =
         if isOperatorDeclared(oper, oldOpMap) then
           raiseError("Redefinition of operator " ^ oper, line, fileName)
         else if n < 1 then
@@ -308,9 +308,9 @@ structure Parser :> PARSER = struct
         in
           (newOpMap, ts)
         end
-    | parseOperatorDefinition((label, line)::ts, _, _, fileName) =
+    | parseOperatorDeclaration((label, line)::ts, _, _, fileName) =
         raiseError("Syntax error during operator declaration: got '" ^ (Lexer.tokenToString label) ^ "'", line, fileName)
-    | parseOperatorDefinition([], _, _, fileName) =
+    | parseOperatorDeclaration([], _, _, fileName) =
         raiseError("EOF while parsing operator definition", ~1, fileName)
 
   (* expects the tokens to start immediately after the FUNCTION_START token *)
@@ -374,13 +374,13 @@ structure Parser :> PARSER = struct
                    end
             | Lexer.INFIX =>
                    let
-                     val (newOpMap, newState) = parseOperatorDefinition(ts, opMap, LEFT, fileName)
+                     val (newOpMap, newState) = parseOperatorDeclaration(ts, opMap, LEFT, fileName)
                    in
                      innerParse(newState, newOpMap)
                    end
             | Lexer.INFIXR =>
                    let
-                     val (newOpMap, newState) = parseOperatorDefinition(ts, opMap, RIGHT, fileName)
+                     val (newOpMap, newState) = parseOperatorDeclaration(ts, opMap, RIGHT, fileName)
                    in
                      innerParse(newState, newOpMap)
                    end
