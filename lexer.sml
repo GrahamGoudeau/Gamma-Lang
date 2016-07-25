@@ -240,8 +240,11 @@ structure Lexer :> LEXER = struct
         in
           if (Utils.member builtInOperators result) then
             ((OPERATOR result, r), restOfLexer)
-           else
-             ((IDENTIFIER result, r), restOfLexer)
+          else if String.isPrefix Utils.RESERVED_PREFIX result then
+            Utils.error(Utils.LEXER(fileName, r), "Identifiers beginning with '" ^
+              Utils.RESERVED_PREFIX ^ "' are reserved for internal use")
+          else
+            ((IDENTIFIER result, r), restOfLexer)
         end
 
       (* ANNOTATION LEXING *)
