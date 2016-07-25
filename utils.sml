@@ -3,6 +3,8 @@ structure Utils = struct
 
   val github = "github.com/GrahamGoudeau/Gamma-Lang"
 
+  val RESERVED_PREFIX = "___"
+
   fun printLn s = print (s ^ "\n")
 
   fun unexpectedError message =
