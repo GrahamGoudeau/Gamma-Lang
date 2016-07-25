@@ -113,7 +113,7 @@ structure Parser :> PARSER = struct
     | expect(expectToken, t::ts, fileName) =
         if expectToken = (getLabel t) then ts
         else raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^
-          ", got " ^ ((Lexer.tokenToString o getLabel) t), getLine t, fileName)
+          ", got " ^ (printToken t), getLine t, fileName)
 
   (* MAIN PARSING *)
 
@@ -295,7 +295,7 @@ structure Parser :> PARSER = struct
                  end)
       | _ =>
           if fail then
-            raiseError("Expected expression identifier, literal, or operator; got " ^ (Lexer.tokenToString (getLabel t)), getLine t, fileName)
+            raiseError("Expected expression identifier, literal, or operator; got " ^ (printToken t), getLine t, fileName)
           else (NONE, t::ts))
 
   (* expects the tokens to start immediately after OPERATOR *)
@@ -366,7 +366,7 @@ structure Parser :> PARSER = struct
       in ((funcName, paramList, exps, isPure), afterFuncState)
       end
     | parseFunction(t::ts, _, _, fileName) =
-        raiseError("Expected function name in declaration, got " ^ ((Lexer.tokenToString o getLabel) t), getLine t, fileName)
+        raiseError("Expected function name in declaration, got " ^ (printToken t), getLine t, fileName)
 
   val parseExpression : (Lexer.token list * operatorMap * int * string * bool) -> (exp option * Lexer.token list) = parseExpression
 
