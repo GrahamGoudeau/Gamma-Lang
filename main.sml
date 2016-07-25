@@ -51,6 +51,7 @@ let
   val opMap = Parser.addNewOperators(Parser.newOperatorMap, operators)
   val inputChars = getInputChars fileName
   val tokens = buildTokens inputChars builtInOpStrs fileName
+  val _ = Parser.reportParenErrors(tokens, fileName)
   val (moduleName, parseForest) = Parser.parse(tokens, opMap, fileName)
 in Utils.exit Utils.SUCCESS
 end

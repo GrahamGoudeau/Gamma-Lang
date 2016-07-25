@@ -35,5 +35,7 @@ signature PARSER = sig
 
   val addNewOperators : operatorMap * ((string * (associativity * arity * int)) list) -> operatorMap
 
+  val reportParenErrors : Lexer.token list * string -> unit
+
   exception ParserError of string
 end

@@ -434,4 +434,39 @@ structure Parser :> PARSER = struct
         raiseError("Syntax error at start of module (expected " ^
           (Lexer.tokenToString Lexer.MODULE_BEGIN) ^ " {module name})",
           getLine t, fileName)
+
+  fun reportParenErrors(tokens, fileName) =
+      let
+        fun unmatched t =
+          raiseError("Unmatched '" ^ printToken t ^ "'", getLine t, fileName)
+        fun unexpected t =
+          raiseError("Unexpected '" ^ printToken t ^ "'", getLine t, fileName)
+
+        fun report ([], stack) =
+              if Stack.isEmpty stack then ()
+              else
+              let
+                val (unmatchedTop, rest) =
+                  Stack.pop(stack, fn () => Utils.unexpectedError("Popping last stack element caused unexpected error"))
+              in
+                raiseError("No closing symbol for " ^ (printToken unmatchedTop), getLine unmatchedTop, fileName)
+              end
+
+          | report (t::ts, stack) = (case getLabel t of
+              Lexer.OPEN_PAREN => report(ts, Stack.push(t, stack))
+            | Lexer.MODULE_BEGIN => report(ts, Stack.push(t, stack))
+            | Lexer.BLOCK_BEGIN => report(ts, Stack.push(t, stack))
+            | Lexer.BLOCK_END =>
+                (case Stack.pop(stack, fn () => unexpected t) of
+                  ((Lexer.BLOCK_BEGIN, _), restOfStack) => report(ts, restOfStack)
+                | ((Lexer.MODULE_BEGIN, _), restOfStack) => report(ts, restOfStack)
+                | (t', _) => unmatched t)
+
+            | Lexer.CLOSE_PAREN =>
+                (case Stack.pop(stack, fn () => unexpected t) of
+                  ((Lexer.OPEN_PAREN, _), restOfStack) => report(ts, restOfStack)
+                | (t', _) => unmatched t)
+            | t => report(ts, stack))
+      in report(tokens, Stack.newStack)
+      end
 end
