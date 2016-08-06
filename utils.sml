@@ -17,11 +17,13 @@ structure Utils = struct
 
   datatype module = LEXER of string * int
                   | PARSER of string * int
+                  | TYPE_CHECK of string * int
                   | INTERNAL
 
   fun moduleToString INTERNAL = "Internal"
     | moduleToString (LEXER _) = "Lexer"
     | moduleToString (PARSER _) = "Parser"
+    | moduleToString (TYPE_CHECK _) = "Type checking"
 
   datatype exitCode = FAIL | SUCCESS
 
@@ -41,6 +43,8 @@ structure Utils = struct
   in (case module of
       INTERNAL => printAndFail ("Internal error reported:\n\t" ^ message)
     | PARSER(fileName, line) =>
+        (doExit (module, fileName, line))
+    | TYPE_CHECK(fileName, line) =>
         (doExit (module, fileName, line))
     | LEXER(fileName, line) =>
         (doExit (module, fileName, line)))
