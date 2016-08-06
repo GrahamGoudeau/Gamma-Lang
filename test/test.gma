@@ -1,0 +1,17 @@
+module t
+    infixr 1 ++
+
+    operator a ++ b do
+        c := 2 * (a + b)
+    end
+
+    constant a := |b| -> 4
+
+    function func(a) do
+        a := 4 ++ 5 ++ 7 * 3
+        f(a,
+          b(c),
+          4 + 4)
+    end
+
+end
