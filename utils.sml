@@ -3,6 +3,8 @@ structure Utils = struct
 
   val github = "github.com/GrahamGoudeau/Gamma-Lang"
 
+  val ASSIGN_OP_STR = ":="
+
   val RESERVED_PREFIX = "___"
 
   fun printLn s = print (s ^ "\n")

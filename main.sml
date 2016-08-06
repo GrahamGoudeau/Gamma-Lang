@@ -45,7 +45,7 @@ let
        ("and", (Parser.LEFT, Parser.BINARY, 4)),
        ("or", (Parser.LEFT, Parser.BINARY, 4)),
        ("not", (Parser.LEFT, Parser.UNARY, 4)),
-       (":=", (Parser.RIGHT, Parser.BINARY, 1))
+       (Utils.ASSIGN_OP_STR, (Parser.RIGHT, Parser.BINARY, 1))
        ]
   val builtInOpStrs = List.map (fn (str, _) => str) operators
   val opMap = Parser.addNewOperators(Parser.newOperatorMap, operators)
