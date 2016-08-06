@@ -3,6 +3,8 @@ structure Utils = struct
 
   val github = "github.com/GrahamGoudeau/Gamma-Lang"
 
+  val ASSIGN_OP_STR = ":="
+
   val RESERVED_PREFIX = "___"
 
   fun printLn s = print (s ^ "\n")
@@ -15,13 +17,16 @@ structure Utils = struct
     if n > 0 then Int.toString n
     else ("-" ^ (Int.toString (~1 * n)))
 
+  (* PHASE(fileName, line) *)
   datatype module = LEXER of string * int
                   | PARSER of string * int
+                  | TYPE_CHECK of string * int
                   | INTERNAL
 
   fun moduleToString INTERNAL = "Internal"
     | moduleToString (LEXER _) = "Lexer"
     | moduleToString (PARSER _) = "Parser"
+    | moduleToString (TYPE_CHECK _) = "Type checking"
 
   datatype exitCode = FAIL | SUCCESS
 
@@ -41,6 +46,8 @@ structure Utils = struct
   in (case module of
       INTERNAL => printAndFail ("Internal error reported:\n\t" ^ message)
     | PARSER(fileName, line) =>
+        (doExit (module, fileName, line))
+    | TYPE_CHECK(fileName, line) =>
         (doExit (module, fileName, line))
     | LEXER(fileName, line) =>
         (doExit (module, fileName, line)))

@@ -8,4 +8,6 @@ lexerSig.sml
 lexer.sml
 parserSig.sml
 parser.sml
+typeCheckSig.sml
+typeCheck.sml
 main.sml

@@ -45,7 +45,7 @@ let
        ("and", (Parser.LEFT, Parser.BINARY, 4)),
        ("or", (Parser.LEFT, Parser.BINARY, 4)),
        ("not", (Parser.LEFT, Parser.UNARY, 4)),
-       (":=", (Parser.RIGHT, Parser.BINARY, 1))
+       (Utils.ASSIGN_OP_STR, (Parser.RIGHT, Parser.BINARY, 1))
        ]
   val builtInOpStrs = List.map (fn (str, _) => str) operators
   val opMap = Parser.addNewOperators(Parser.newOperatorMap, operators)
@@ -53,6 +53,8 @@ let
   val tokens = buildTokens inputChars builtInOpStrs fileName
   val _ = Parser.reportParenErrors(tokens, fileName)
   val (moduleName, parseForest) = Parser.parse(tokens, opMap, fileName)
+  val typeCheckContext = TypeCheck.newTypeCheckerContext(moduleName, fileName)
+  val _ = TypeCheck.typeCheck(parseForest, typeCheckContext)
 in Utils.exit Utils.SUCCESS
 end
 
