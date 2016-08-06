@@ -20,6 +20,8 @@ signature PARSER = sig
   datatype topLevel = TOP_DEFINE of definition * int
                     | CONSTANT of exp * int
 
+  val getExpListFromDefinition : definition -> exp list
+
   datatype associativity = LEFT | RIGHT
   datatype arity = UNARY | BINARY
   type operatorMap
@@ -37,5 +39,10 @@ signature PARSER = sig
 
   val reportParenErrors : Lexer.token list * string -> unit
 
+  val isExpressionAssignOp : exp -> bool
+
+  val isWellFormedAssignment : exp -> bool
+
+  (* TODO: remove *)
   exception ParserError of string
 end

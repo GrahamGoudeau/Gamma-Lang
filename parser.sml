@@ -43,6 +43,8 @@ structure Parser :> PARSER = struct
   fun lazyGetOpt(NONE, f) = f()
     | lazyGetOpt(SOME t, _) = t
 
+  fun getExpListFromDefinition (_, _, expList, _) = expList
+
   (* OPERATOR PRECEDENCE/ASSOCIATIVITY UTILS *)
   datatype associativity = LEFT | RIGHT
   datatype arity = UNARY | BINARY
@@ -469,4 +471,13 @@ structure Parser :> PARSER = struct
             | t => report(ts, stack))
       in report(tokens, Stack.newStack)
       end
+
+  fun isExpressionAssignOp e = case e of
+        LIT(OPERATOR oper, _) => oper = Utils.ASSIGN_OP_STR
+      | _ => false
+
+  fun isWellFormedAssignment e =
+    (case e of
+         (CALL(func, [LIT(IDENTIFIER _, _), _], _)) => isExpressionAssignOp func
+       | _ => false)
 end

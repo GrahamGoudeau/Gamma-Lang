@@ -17,6 +17,7 @@ structure Utils = struct
     if n > 0 then Int.toString n
     else ("-" ^ (Int.toString (~1 * n)))
 
+  (* PHASE(fileName, line) *)
   datatype module = LEXER of string * int
                   | PARSER of string * int
                   | TYPE_CHECK of string * int

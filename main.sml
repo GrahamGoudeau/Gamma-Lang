@@ -53,6 +53,8 @@ let
   val tokens = buildTokens inputChars builtInOpStrs fileName
   val _ = Parser.reportParenErrors(tokens, fileName)
   val (moduleName, parseForest) = Parser.parse(tokens, opMap, fileName)
+  val typeCheckContext = TypeCheck.newTypeCheckerContext(moduleName, fileName)
+  val _ = TypeCheck.typeCheck(parseForest, typeCheckContext)
 in Utils.exit Utils.SUCCESS
 end
 
