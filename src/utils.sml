@@ -20,6 +20,24 @@ structure Utils = struct
     if n >= 0 then Int.toString n
     else ("-" ^ (Int.toString (~1 * n)))
 
+  val opCharData = [(#"+", "plus"), (#"-", "minus"), (#"/", "slash"),
+                    (#"*", "star"), (#"$", "dollar"), (#"<", "lt"),
+                    (#">", "gt"), (#"=", "eq"), (#":", "colon"),
+                    (#"~", "tilde"), (#"^", "caret")
+                   ]
+
+  fun fst (x, _) = x
+  fun snd (_, y) = y
+
+  fun safeFind p list error =
+  let
+    val resultOpt = List.find p list
+  in
+    case resultOpt of
+         SOME a => a
+       | NONE => error()
+  end
+
   (* PHASE(fileName, line) *)
   datatype module = LEXER of string * int
                   | PARSER of string * int
