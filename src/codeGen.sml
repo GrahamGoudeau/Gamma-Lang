@@ -16,7 +16,7 @@ structure CodeGen :> CODE_GEN = struct
   fun buildNewContext ({moduleName=module, fileName=file, indentLevel=indent}: codeGenContext, newIndentLevel) =
     {moduleName=module, fileName=file, indentLevel=newIndentLevel}
 
-  val TEMP_DIR = "/tmp/"
+  val WRITE_DIR = "./"
   val INCLUDE_IO = "#include <stdio.h>"
   val INCLUDE_STD = "#include <stdlib.h>"
 
@@ -31,7 +31,7 @@ structure CodeGen :> CODE_GEN = struct
   fun includeLibs outStream =
     List.map (fn includeLib => outputLine(outStream, includeLib)) std_includes
 
-  fun getOutFileName context = TEMP_DIR ^ (#moduleName (context: codeGenContext)) ^ ".c"
+  fun getOutFileName context = WRITE_DIR ^ (#moduleName (context: codeGenContext)) ^ ".c"
 
   fun createOutFile context = (TextIO.openOut o getOutFileName) context
 
