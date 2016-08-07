@@ -25,10 +25,8 @@ structure Parser :> PARSER = struct
   type module = string * exp list
 
   (* PARSER UTILITY FUNCTIONS *)
-  fun fst (x, _) = x
-  fun snd (_, y) = y
-  val getLabel = fst
-  val getLine = snd
+  val getLabel = Utils.fst
+  val getLine = Utils.snd
 
   val printToken = (Lexer.tokenToString o getLabel)
 
@@ -59,7 +57,7 @@ structure Parser :> PARSER = struct
   val addNewOperators = op @
   fun isOperatorDeclared (oper, ops) =
       let
-        val opStrings = List.map fst ops
+        val opStrings = List.map Utils.fst ops
       in Utils.member opStrings oper
       end
 
