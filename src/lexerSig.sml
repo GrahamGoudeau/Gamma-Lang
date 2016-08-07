@@ -4,7 +4,7 @@ signature LEXER = sig
     | IDENTIFIER of string
     | KEYWORD of string
     | DECLARE_VAR
-    | FUNCTION_START
+    | FUNCTION_BEGIN
     | BLOCK_END
     | BLOCK_BEGIN
     | IMPURE
@@ -21,6 +21,9 @@ signature LEXER = sig
     | INFIX
     | INFIXR
     | OPERATOR_DEFINE
+    | IF
+    | THEN
+    | ELSE
     | STRING_LITERAL of string
 
   type line = int

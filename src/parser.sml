@@ -16,6 +16,7 @@ structure Parser :> PARSER = struct
                | MODULE_CALL of string * string * exp list * int
                | MODULE_VAR of string * string * int
                | LAMBDA of identifier list * exp
+               | IF of exp * exp * exp * int
      withtype definition = identifier * identifier list * exp list * bool
 
   datatype topLevel = TOP_DEFINE of definition * int
@@ -110,6 +111,9 @@ structure Parser :> PARSER = struct
         ("{var " ^ moduleName ^ "." ^ i ^ "}")
     | (LAMBDA (is, exp)) => ("{lambda " ^
         ((String.concat o (List.map (fn i => (i ^ " ")))) is) ^ "-> " ^ (expToString exp) ^ "}")
+    | (IF (cond, trueExp, falseExp, _)) =>
+        ("{if " ^ (expToString cond) ^ " then " ^ (expToString trueExp) ^
+          " else " ^ (expToString falseExp) ^ "}")
 
   fun expect(expectToken, [], fileName) = raiseError("Expected token " ^ (Lexer.tokenToString expectToken) ^ ", got EOF", ~1, fileName)
     | expect(expectToken, t::ts, fileName) =
@@ -185,12 +189,32 @@ structure Parser :> PARSER = struct
         if fail then
           raiseError("Expected expression, got EOF", ~1, fileName)
         else (NONE, [])
-    | parseExpression((Lexer.FUNCTION_START, line)::ts, opMap, _, fileName, fail) =
+    | parseExpression((Lexer.FUNCTION_BEGIN, line)::ts, opMap, _, fileName, fail) =
         let
           val (func, funcState) = parseFunction(ts, opMap, true, fileName)
         in
           (SOME (DEFINE (func, line)), funcState)
         end
+    | parseExpression((Lexer.IF, line)::ts, opMap, minPrec, fileName, fail) =
+        let
+          val (condOpt, condState) = parseExpression(ts, opMap, minPrec, fileName, fail)
+          val cond = lazyGetOpt(condOpt, fn () => raiseError("Unexpected error getting IF condition", line, fileName))
+
+          val afterThen = expect(Lexer.THEN, condState, fileName)
+
+          val (trueOpt, trueState) = parseExpression(afterThen, opMap, minPrec, fileName, fail)
+          val trueExp = lazyGetOpt(trueOpt, fn () => raiseError("Unexpected error getting IF true expression", line, fileName))
+
+          val afterElse = expect(Lexer.ELSE, trueState, fileName)
+
+          val (falseOpt, falseState) = parseExpression(afterElse, opMap, minPrec, fileName, fail)
+          val falseExp = lazyGetOpt(falseOpt, fn () => raiseError("Unexpected error getting IF false expression", line, fileName))
+
+          val afterEnd = expect(Lexer.BLOCK_END, falseState, fileName)
+        in
+          (SOME (IF(cond, trueExp, falseExp, line)), afterEnd)
+        end
+
     | parseExpression((Lexer.LAMBDA_BAR, line)::ts, opMap, _, fileName, fail) =
         let
           val (idents, identsState) = gatherLambdaParams(ts, [], true, fileName)
@@ -355,7 +379,7 @@ structure Parser :> PARSER = struct
           getExps(expState, acc @ [exp], opMap, fileName)
         end
 
-  (* expects the tokens to start immediately after the FUNCTION_START token *)
+  (* expects the tokens to start immediately after the FUNCTION_BEGIN token *)
   and parseFunction([], _, _, fileName) =
         raiseError("Expected function definition, got EOF", ~1, fileName)
     | parseFunction((Lexer.IDENTIFIER funcName, line)::ts, opMap, isPure, fileName) =
@@ -389,14 +413,14 @@ structure Parser :> PARSER = struct
           | innerParse ((t::ts), opMap) = (case getLabel t of
               Lexer.IMPURE => (case ts of
                  [] => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName)
-               | ((Lexer.FUNCTION_START, line)::ts') =>
+               | ((Lexer.FUNCTION_BEGIN, line)::ts') =>
                    let
                      val (func, funcState) = parseFunction(ts', opMap, false, fileName)
                    in
                      (TOP_DEFINE(func, getLine t)) :: innerParse(funcState, opMap)
                    end
                | (t'::ts') => raiseError("Got \"impure\" keyword without function definition", getLine t, fileName))
-            | Lexer.FUNCTION_START =>
+            | Lexer.FUNCTION_BEGIN =>
                    let
                      val (func, funcState) = parseFunction(ts, opMap, true, fileName)
                    in
@@ -454,21 +478,29 @@ structure Parser :> PARSER = struct
                 raiseError("No closing symbol for " ^ (printToken unmatchedTop), getLine unmatchedTop, fileName)
               end
 
-          | report (t::ts, stack) = (case getLabel t of
-              Lexer.OPEN_PAREN => report(ts, Stack.push(t, stack))
-            | Lexer.MODULE_BEGIN => report(ts, Stack.push(t, stack))
-            | Lexer.BLOCK_BEGIN => report(ts, Stack.push(t, stack))
-            | Lexer.BLOCK_END =>
-                (case Stack.pop(stack, fn () => unexpected t) of
-                  ((Lexer.BLOCK_BEGIN, _), restOfStack) => report(ts, restOfStack)
-                | ((Lexer.MODULE_BEGIN, _), restOfStack) => report(ts, restOfStack)
-                | (t', _) => unmatched t)
+          | report (t::ts, stack) =
+              let
+                val continuation = fn () => report(ts, Stack.push(t, stack))
+              in (case getLabel t of
+                  Lexer.OPEN_PAREN => continuation()
+                | Lexer.MODULE_BEGIN => continuation()
+                | Lexer.FUNCTION_BEGIN => continuation()
+                | Lexer.OPERATOR_DEFINE => continuation()
+                | Lexer.IF => continuation()
+                | Lexer.BLOCK_END =>
+                    (case Stack.pop(stack, fn () => unexpected t) of
+                      ((Lexer.FUNCTION_BEGIN, _), restOfStack) => report(ts, restOfStack)
+                    | ((Lexer.MODULE_BEGIN, _), restOfStack) => report(ts, restOfStack)
+                    | ((Lexer.OPERATOR_DEFINE, _), restOfStack) => report(ts, restOfStack)
+                    | ((Lexer.IF, _), restOfStack) => report(ts, restOfStack)
+                    | (t', _) => unmatched t)
 
-            | Lexer.CLOSE_PAREN =>
-                (case Stack.pop(stack, fn () => unexpected t) of
-                  ((Lexer.OPEN_PAREN, _), restOfStack) => report(ts, restOfStack)
-                | (t', _) => unmatched t)
-            | t => report(ts, stack))
+                | Lexer.CLOSE_PAREN =>
+                    (case Stack.pop(stack, fn () => unexpected t) of
+                      ((Lexer.OPEN_PAREN, _), restOfStack) => report(ts, restOfStack)
+                    | (t', _) => unmatched t)
+                | t => report(ts, stack))
+              end
       in report(tokens, Stack.newStack)
       end
 

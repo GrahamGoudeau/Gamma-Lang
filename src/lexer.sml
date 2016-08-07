@@ -4,7 +4,7 @@ structure Lexer :> LEXER = struct
     | IDENTIFIER of string
     | KEYWORD of string
     | DECLARE_VAR
-    | FUNCTION_START
+    | FUNCTION_BEGIN
     | BLOCK_END
     | BLOCK_BEGIN
     | IMPURE
@@ -21,6 +21,9 @@ structure Lexer :> LEXER = struct
     | INFIX
     | INFIXR
     | OPERATOR_DEFINE
+    | IF
+    | THEN
+    | ELSE
     | STRING_LITERAL of string
 
   type line = int
@@ -34,7 +37,7 @@ structure Lexer :> LEXER = struct
   fun getLine (_, line, _) = line
   fun getBuiltInOperators (_, _, ops) = ops
 
-  val keywordMappings = [("function", FUNCTION_START),
+  val keywordMappings = [("function", FUNCTION_BEGIN),
                          ("end", BLOCK_END),
                          ("impure", IMPURE),
                          ("var", DECLARE_VAR),
@@ -43,7 +46,10 @@ structure Lexer :> LEXER = struct
                          ("infix", INFIX),
                          ("infixr", INFIXR),
                          ("operator", OPERATOR_DEFINE),
-                         ("do", BLOCK_BEGIN)
+                         ("do", BLOCK_BEGIN),
+                         ("if", IF),
+                         ("then", THEN),
+                         ("else", ELSE)
                         ]
 
   val keywords = List.map (fn (keyword, _) => keyword) keywordMappings
