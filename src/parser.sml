@@ -454,21 +454,29 @@ structure Parser :> PARSER = struct
                 raiseError("No closing symbol for " ^ (printToken unmatchedTop), getLine unmatchedTop, fileName)
               end
 
-          | report (t::ts, stack) = (case getLabel t of
-              Lexer.OPEN_PAREN => report(ts, Stack.push(t, stack))
-            | Lexer.MODULE_BEGIN => report(ts, Stack.push(t, stack))
-            | Lexer.BLOCK_BEGIN => report(ts, Stack.push(t, stack))
-            | Lexer.BLOCK_END =>
-                (case Stack.pop(stack, fn () => unexpected t) of
-                  ((Lexer.BLOCK_BEGIN, _), restOfStack) => report(ts, restOfStack)
-                | ((Lexer.MODULE_BEGIN, _), restOfStack) => report(ts, restOfStack)
-                | (t', _) => unmatched t)
+          | report (t::ts, stack) =
+              let
+                val continuation = fn () => report(ts, Stack.push(t, stack))
+              in (case getLabel t of
+                  Lexer.OPEN_PAREN => continuation()
+                | Lexer.MODULE_BEGIN => continuation()
+                | Lexer.FUNCTION_BEGIN => continuation()
+                | Lexer.OPERATOR_DEFINE => continuation()
+                | Lexer.IF => continuation()
+                | Lexer.BLOCK_END =>
+                    (case Stack.pop(stack, fn () => unexpected t) of
+                      ((Lexer.FUNCTION_BEGIN, _), restOfStack) => report(ts, restOfStack)
+                    | ((Lexer.MODULE_BEGIN, _), restOfStack) => report(ts, restOfStack)
+                    | ((Lexer.OPERATOR_DEFINE, _), restOfStack) => report(ts, restOfStack)
+                    | ((Lexer.IF, _), restOfStack) => report(ts, restOfStack)
+                    | (t', _) => unmatched t)
 
-            | Lexer.CLOSE_PAREN =>
-                (case Stack.pop(stack, fn () => unexpected t) of
-                  ((Lexer.OPEN_PAREN, _), restOfStack) => report(ts, restOfStack)
-                | (t', _) => unmatched t)
-            | t => report(ts, stack))
+                | Lexer.CLOSE_PAREN =>
+                    (case Stack.pop(stack, fn () => unexpected t) of
+                      ((Lexer.OPEN_PAREN, _), restOfStack) => report(ts, restOfStack)
+                    | (t', _) => unmatched t)
+                | t => report(ts, stack))
+              end
       in report(tokens, Stack.newStack)
       end
 
