@@ -16,6 +16,7 @@ signature PARSER = sig
                | MODULE_CALL of string * string * exp list * int
                | MODULE_VAR of string * string * int
                | LAMBDA of identifier list * exp
+               | IF of exp * exp * exp * int
 
   datatype topLevel = TOP_DEFINE of definition * int
                     | CONSTANT of exp * int
