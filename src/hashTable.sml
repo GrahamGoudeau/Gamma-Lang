@@ -1,7 +1,7 @@
 structure HashTable :> HASH_TABLE = struct
   type ('k, 'v) hashTable = {
                               table: ('k * 'v) list array,
-                              defaultTuple: 'v,
+                              defaultValue: 'v,
                               tableSize: int,
                               hashFunction: 'k -> int,
                               eqFunction: 'k * 'k -> bool,
@@ -39,10 +39,10 @@ structure HashTable :> HASH_TABLE = struct
   in Word.toInt resultInRange
   end
 
-  fun newHashTable hashFunction eqFunction defaultTuple =
+  fun newHashTable hashFunction eqFunction defaultValue =
     {
       table = Array.tabulate(DEFAULT_SIZE, (fn _ => [])),
-      defaultTuple = defaultTuple,
+      defaultValue = defaultValue,
       tableSize = DEFAULT_SIZE,
       hashFunction = hashFunction,
       eqFunction = eqFunction,
@@ -56,13 +56,13 @@ structure HashTable :> HASH_TABLE = struct
     Array.sub(table, index)
       handle Subscript => Utils.unexpectedError "Array out of bounds in hash table"
 
-  fun newStringHashTable defaultTuple =
+  fun newStringHashTable defaultValue =
     newHashTable
         jenkinsHash
         (fn (str1, str2) => String.compare(str1, str2) = EQUAL)
-        defaultTuple
+        defaultValue
 
-  fun put {table=table, defaultTuple=defaultTuple, tableSize=tableSize, hashFunction=hashFunction, eqFunction=eqFunction, numElements=numElements} key value =
+  fun put {table=table, defaultValue=defaultValue, tableSize=tableSize, hashFunction=hashFunction, eqFunction=eqFunction, numElements=numElements} key value =
   let
     val index = getIndex(tableSize, hashFunction, key)
     val chain = getChain(table, index)
@@ -78,7 +78,7 @@ structure HashTable :> HASH_TABLE = struct
         end
       else (table, tableSize)
   in {table=newTable,
-      defaultTuple=defaultTuple,
+      defaultValue=defaultValue,
       tableSize=newTableSize,
       hashFunction=hashFunction,
       eqFunction=eqFunction,
@@ -88,7 +88,7 @@ structure HashTable :> HASH_TABLE = struct
 
   fun get {
             table=table,
-            defaultTuple=_,
+            defaultValue=_,
             tableSize=tableSize,
             hashFunction=hashFunction,
             eqFunction=eqFunction,
