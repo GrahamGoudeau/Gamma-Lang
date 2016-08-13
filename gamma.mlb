@@ -4,6 +4,8 @@ src/stackSig.sml
 src/stack.sml
 src/queueSig.sml
 src/queue.sml
+src/hashTableSig.sml
+src/hashTable.sml
 src/lexerSig.sml
 src/lexer.sml
 src/parserSig.sml
