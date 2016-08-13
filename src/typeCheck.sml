@@ -11,8 +11,8 @@ structure TypeCheck :> TYPE_CHECK = struct
   fun raiseTypeError(message, line, context: typeCheckerContext) =
     Utils.error(Utils.TYPE_CHECK(#fileName context, line), message)
 
-  fun checkAssignments([], context) = ()
-    | checkAssignments(t::ts, context) =
+  fun checkAssignmentSyntax([], context) = ()
+    | checkAssignmentSyntax(t::ts, context) =
       let
         fun checkAssignAndContinue(e as (CALL(func, _, line)), continuation) =
           if Parser.isExpressionAssignOp func andalso (not (Parser.isWellFormedAssignment e)) then
@@ -29,16 +29,16 @@ structure TypeCheck :> TYPE_CHECK = struct
 
             (* check if a single variable is being assigned the result of some other expression *)
             CONSTANT(e as (CALL(func, args, _)), line) =>
-              checkAssignAndContinue(e, fn () => checkAssignments(ts, context))
+              checkAssignAndContinue(e, fn () => checkAssignmentSyntax(ts, context))
 
           | CONSTANT(e, line) => raiseTypeError("Expected constant definition to be variable assignment", line, context)
 
           | TOP_DEFINE(definition, _) =>
-              checkFunctionBody(getExpListFromDefinition definition, fn () => checkAssignments(ts, context)))
+              checkFunctionBody(getExpListFromDefinition definition, fn () => checkAssignmentSyntax(ts, context)))
         end
 
   fun typeCheck(topLevelList, context) =
   let
-    val _ = checkAssignments(topLevelList, context)
+    val _ = checkAssignmentSyntax(topLevelList, context)
   in () end
 end
