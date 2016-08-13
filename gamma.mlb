@@ -6,6 +6,8 @@ src/queueSig.sml
 src/queue.sml
 src/hashTableSig.sml
 src/hashTable.sml
+src/setSig.sml
+src/set.sml
 src/lexerSig.sml
 src/lexer.sml
 src/parserSig.sml
