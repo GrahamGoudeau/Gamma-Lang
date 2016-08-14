@@ -2,9 +2,9 @@ buildDir=build/
 srcDir=src/
 if [ ! -d "$buildDir" ]; then
     mkdir $buildDir
+else
+    rm "$buildDir"*
 fi
-
-rm "$buildDir"*
 
 lineDirective=__LINE__
 fileDirective=__FILE__
