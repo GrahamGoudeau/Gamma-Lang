@@ -16,7 +16,7 @@ structure HashTable :> HASH_TABLE = struct
     val chars = String.explode str
     val maxInt = case Int.maxInt of
                       SOME n => Word.fromInt n
-                    | NONE => Utils.unexpectedError "Unable to get maximum integer size"
+                    | NONE => Utils.unexpectedError("Unable to get maximum integer size", __FILE__, __LINE__)
     val startHash = Word.fromInt 0
     val ten = Word.fromInt 10
     val six = Word.fromInt 6
@@ -54,7 +54,7 @@ structure HashTable :> HASH_TABLE = struct
 
   fun getChain(table, index) =
     Array.sub(table, index)
-      handle Subscript => Utils.unexpectedError "Array out of bounds in hash table"
+      handle Subscript => Utils.unexpectedError("Array out of bounds in hash table", __FILE__, __LINE__)
 
   fun newStringHashTable defaultValue =
     newHashTable
@@ -73,7 +73,7 @@ structure HashTable :> HASH_TABLE = struct
     val (newTable, newTableSize) =
       if Real.>=(loadFactor, MAX_LOAD_FACTOR) then
         let
-          val () = Utils.warn "Hash table expand not implemented; load factor degrading performance"
+          val () = Utils.warn("Hash table expand not implemented; load factor degrading performance", __FILE__, __LINE__)
         in (table, tableSize)
         end
       else (table, tableSize)

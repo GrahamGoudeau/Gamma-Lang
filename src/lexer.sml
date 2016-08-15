@@ -89,7 +89,7 @@ structure Lexer :> LEXER = struct
     | tokenToString (STRING_LITERAL s) = ("\"" ^ s ^ "\"")
     | tokenToString label =
         (case getLabelString label of
-              NONE => Utils.unexpectedError("Unexpected error getting label string")
+              NONE => Utils.unexpectedError("Unexpected error getting label string", __FILE__, __LINE__)
             | SOME(l) => ("{keyword '" ^ l ^ "'}"))
 
   fun errorReport(message, lexer: lexer) =
@@ -262,7 +262,7 @@ structure Lexer :> LEXER = struct
           val (remainingChars, result) = accumulateChars isCharLeadIdentifier (c::cs) (getKeywordLabel o charListToString)
           val remainingLexer = getNewLexer(remainingChars, r)
         in (case result of
-                 NONE => Utils.unexpectedError("Unexpected error getting keyword")
+                 NONE => Utils.unexpectedError("Unexpected error getting keyword", __FILE__, __LINE__)
                | SOME(k) => ((k, r), remainingLexer))
         end
 
