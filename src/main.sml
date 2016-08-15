@@ -55,8 +55,6 @@ let
   val (moduleName, parseForest) = Parser.parse(tokens, opMap, fileName)
   val typeCheckContext = TypeCheck.newTypeCheckerContext(moduleName, fileName)
   val _ = TypeCheck.typeCheck(parseForest, typeCheckContext)
-  val codeGenContext = CodeGen.newCodeGenContext(moduleName, fileName)
-  val _ = CodeGen.codeGen(parseForest, codeGenContext)
 in Utils.exit Utils.SUCCESS
 end
 
