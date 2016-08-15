@@ -99,8 +99,7 @@ structure Lexer :> LEXER = struct
 
   fun newLexer(cs, builtInOperators, fileName) = buildNewLexer(cs, 1, builtInOperators, fileName)
 
-  val opChars = [#"+", #"-", #"/", #"*", #"$", #"<", #">",
-                 #"=", #":", #"~", #"^"]
+  val opChars = List.map Utils.fst Utils.opCharData
 
   fun peekChar [] = NONE
     | peekChar (c::cs) = SOME c

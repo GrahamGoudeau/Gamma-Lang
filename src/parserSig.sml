@@ -44,6 +44,10 @@ signature PARSER = sig
 
   val isWellFormedAssignment : exp -> bool
 
+  val getVarAssigned : (exp * string) -> string
+
+  val getExpLine : exp -> int
+
   (* TODO: remove *)
   exception ParserError of string
 end
