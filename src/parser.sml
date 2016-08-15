@@ -19,6 +19,16 @@ structure Parser :> PARSER = struct
                | IF of exp * exp * exp * int
      withtype definition = identifier * identifier list * exp list * bool
 
+  val getExpLine = fn
+          DEFINE(_, l) => l
+        | LIT(_, l) => l
+        | VAR(_, l) => l
+        | CALL(_, _, l) => l
+        | MODULE_CALL(_, _, _, l) => l
+        | MODULE_VAR(_, _, l) => l
+        | LAMBDA _ => Utils.unexpectedError("Attempted to get the source line for a lambda value")
+        | IF(_, _, _, l) => l
+
   datatype topLevel = TOP_DEFINE of definition * int
                     | CONSTANT of exp * int
 
@@ -510,4 +520,9 @@ structure Parser :> PARSER = struct
     (case e of
          (CALL(func, [LIT(IDENTIFIER _, _), _], _)) => isExpressionAssignOp func
        | _ => false)
+
+  fun getVarAssigned (e, fileName) = case e of
+         (CALL(func, [LIT(IDENTIFIER ident, _), _], _)) => ident
+       | exp => raiseError("Got invalid assignment in getVarAssigned()", getExpLine exp, fileName)
+           Utils.unexpectedError "Parser expected assignment in getVarAssigned()"
 end
