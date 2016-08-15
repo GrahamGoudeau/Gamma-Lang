@@ -47,7 +47,7 @@ structure CodeGen :> CODE_GEN = struct
             Utils.safeFind
               (fn chData => (Utils.fst chData) = c)
               Utils.opCharData
-              (fn _ => Utils.unexpectedError ("Problem converting operator '" ^ oper ^ "' to C-safe function name"))
+              (fn _ => Utils.unexpectedError ("Problem converting operator '" ^ oper ^ "' to C-safe function name", __FILE__, __LINE__))
         in
           convertChars (cs, acc @ [opStr, "_"])
         end
@@ -68,7 +68,7 @@ structure CodeGen :> CODE_GEN = struct
         | STRING_LITERAL str => curriedOutput ("\"" ^ str ^ "\"")
         | IDENTIFIER i => curriedOutput i
         | OPERATOR oper => writeOperator oper
-        | UNDEFINED => Utils.unexpectedError ("Attempted to write an undefined value to file")
+        | UNDEFINED => Utils.unexpectedError ("Attempted to write an undefined value to file", __FILE__, __LINE__)
     end
 
   fun cleanup (outStream, context: codeGenContext) =

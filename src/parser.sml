@@ -26,7 +26,7 @@ structure Parser :> PARSER = struct
         | CALL(_, _, l) => l
         | MODULE_CALL(_, _, _, l) => l
         | MODULE_VAR(_, _, l) => l
-        | LAMBDA _ => Utils.unexpectedError("Attempted to get the source line for a lambda value")
+        | LAMBDA _ => Utils.unexpectedError("Attempted to get the source line for a lambda value", __FILE__, __LINE__)
         | IF(_, _, _, l) => l
 
   datatype topLevel = TOP_DEFINE of definition * int
@@ -481,7 +481,7 @@ structure Parser :> PARSER = struct
               else
               let
                 val (unmatchedTop, rest) =
-                  Stack.pop(stack, fn () => Utils.unexpectedError("Popping last stack element caused unexpected error"))
+                  Stack.pop(stack, fn () => Utils.unexpectedError("Popping last stack element caused unexpected error", __FILE__, __LINE__))
               in
                 raiseError("No closing symbol for " ^ (printToken unmatchedTop), getLine unmatchedTop, fileName)
               end
@@ -524,5 +524,5 @@ structure Parser :> PARSER = struct
   fun getVarAssigned (e, fileName) = case e of
          (CALL(func, [LIT(IDENTIFIER ident, _), _], _)) => ident
        | exp => raiseError("Got invalid assignment in getVarAssigned()", getExpLine exp, fileName)
-           Utils.unexpectedError "Parser expected assignment in getVarAssigned()"
+           Utils.unexpectedError("Parser expected assignment in getVarAssigned()", __FILE__, __LINE__)
 end
