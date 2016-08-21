@@ -39,8 +39,43 @@ structure TypeCheck :> TYPE_CHECK = struct
               checkFunctionBody(getExpListFromDefinition definition, fn () => checkAssignmentSyntax(ts, context)))
         end
 
+  (* expects assignments to be syntactically correct by this point *)
+  fun checkRepeatAssignment([], context) = ()
+    | checkRepeatAssignment(topLevels, context) =
+      let
+        fun updateSet(expression, varSet) =
+            if Parser.isWellFormedAssignment expression then
+              let
+                val ident = Parser.getVarAssigned(expression, #fileName context)
+                val identLine = Parser.getExpLine expression
+              in
+                if Set.contains varSet ident then
+                  raiseTypeError("Redefinition of variable '" ^ ident ^ "' not allowed", identLine, context)
+                else Set.put varSet ident
+              end
+            else
+              varSet
+
+        fun checkTopLevel([], _) = ()
+          | checkTopLevel(t::ts, varSet) = (case t of
+              CONSTANT(e, line) =>
+                checkTopLevel(ts, updateSet(e, varSet))
+            | TOP_DEFINE(definition, line) =>
+                let
+                  val expList = Parser.getExpListFromDefinition definition
+                  val setWithParams =
+                    List.foldl (fn (param, set) => Set.put set param) varSet (Parser.getParamsFromDefinition definition)
+                  val _ =
+                    List.foldl updateSet setWithParams expList
+
+                (* be sure that function bodies do not leak variable names into broader scope *)
+                in checkTopLevel(ts, Set.put varSet (Parser.getNameFromDefinition definition))
+              end)
+      in checkTopLevel(topLevels, Set.newStringSet) end
+
   fun typeCheck(topLevelList, context) =
   let
-    val _ = checkAssignmentSyntax(topLevelList, context)
+    val () = checkAssignmentSyntax(topLevelList, context)
+    val () = checkRepeatAssignment(topLevelList, context)
   in () end
 end
