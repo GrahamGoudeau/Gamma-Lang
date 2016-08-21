@@ -5,7 +5,7 @@ structure HashTable :> HASH_TABLE = struct
                               tableSize: int,
                               hashFunction: 'k -> int,
                               eqFunction: 'k * 'k -> bool,
-                              numElements: int
+                              numElements: int ref
                             }
 
   val DEFAULT_SIZE = 1000
@@ -39,15 +39,18 @@ structure HashTable :> HASH_TABLE = struct
   in Word.toInt resultInRange
   end
 
-  fun newHashTable hashFunction eqFunction defaultValue =
+  fun buildHashTable hashFunction eqFunction defaultValue size =
     {
-      table = Array.tabulate(DEFAULT_SIZE, (fn _ => [])),
+      table = Array.tabulate(size, (fn _ => [])),
       defaultValue = defaultValue,
-      tableSize = DEFAULT_SIZE,
+      tableSize = size,
       hashFunction = hashFunction,
       eqFunction = eqFunction,
-      numElements = 0
+      numElements = ref 0
     }
+
+  fun newHashTable hashFunction eqFunction defaultValue =
+    buildHashTable hashFunction eqFunction defaultValue DEFAULT_SIZE
 
   fun getIndex(tableSize, f, key) =
     (f key) mod tableSize
@@ -62,28 +65,37 @@ structure HashTable :> HASH_TABLE = struct
         (fn (str1, str2) => String.compare(str1, str2) = EQUAL)
         defaultValue
 
-  fun put {table=table, defaultValue=defaultValue, tableSize=tableSize, hashFunction=hashFunction, eqFunction=eqFunction, numElements=numElements} key value =
+  fun expandHashTable(
+        (originalTable as {table=table, defaultValue=defaultValue,
+          tableSize=tableSize, hashFunction=hashFunction, eqFunction=eqFunction,
+          numElements=numElements}),
+        newSize) =
+    let
+      val newTable = buildHashTable hashFunction eqFunction defaultValue newSize
+      fun rehashList [] = ()
+        | rehashList ((k, v)::kvs) =
+            (put newTable k v;
+             rehashList kvs)
+
+      val () = Array.app rehashList table
+    in
+      newTable
+    end
+
+  and put (originalTable as {table=table, defaultValue=defaultValue, tableSize=tableSize, hashFunction=hashFunction, eqFunction=eqFunction, numElements=numElements}) key value =
   let
     val index = getIndex(tableSize, hashFunction, key)
     val chain = getChain(table, index)
     val () = Array.update(table, index, (key, value)::chain)
-    val realNumElements = Real.fromInt(numElements)
+    val realNumElements = Real.fromInt(!numElements)
     val realTableSize = Real.fromInt(tableSize)
     val loadFactor = realNumElements / realTableSize
-    val (newTable, newTableSize) =
+    val () = numElements := (!numElements) + 1
+    val newTable =
       if Real.>=(loadFactor, MAX_LOAD_FACTOR) then
-        let
-          val () = Utils.warn("Hash table expand not implemented; load factor degrading performance", __FILE__, __LINE__)
-        in (table, tableSize)
-        end
-      else (table, tableSize)
-  in {table=newTable,
-      defaultValue=defaultValue,
-      tableSize=newTableSize,
-      hashFunction=hashFunction,
-      eqFunction=eqFunction,
-      numElements=numElements + 1
-     }
+        expandHashTable(originalTable, tableSize * 2)
+      else originalTable
+  in newTable
   end
 
   fun get {
