@@ -23,6 +23,10 @@ signature PARSER = sig
 
   val getExpListFromDefinition : definition -> exp list
 
+  val getNameFromDefinition : definition -> string
+
+  val getParamsFromDefinition : definition -> string list
+
   datatype associativity = LEFT | RIGHT
   datatype arity = UNARY | BINARY
   type operatorMap

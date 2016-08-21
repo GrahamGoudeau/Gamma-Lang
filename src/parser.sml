@@ -54,6 +54,10 @@ structure Parser :> PARSER = struct
 
   fun getExpListFromDefinition (_, _, expList, _) = expList
 
+  fun getNameFromDefinition (name, _, _, _) = name
+
+  fun getParamsFromDefinition (_, params, _, _) = params
+
   (* OPERATOR PRECEDENCE/ASSOCIATIVITY UTILS *)
   datatype associativity = LEFT | RIGHT
   datatype arity = UNARY | BINARY
