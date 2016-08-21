@@ -1,11 +1,13 @@
 structure TypeCheck :> TYPE_CHECK = struct
   open Parser
-  type typeCheckerContext = {moduleName: string,
-                             fileName: string
+  type typeCheckerContext = {
+                              moduleName: string,
+                              fileName: string
                             }
 
-  fun newTypeCheckerContext(moduleName, fileName) = {moduleName=moduleName,
-                                                     fileName=fileName
+  fun newTypeCheckerContext(moduleName, fileName) = {
+                                                      moduleName=moduleName,
+                                                      fileName=fileName
                                                     }
 
   fun raiseTypeError(message, line, context: typeCheckerContext) =
